@@ -61,6 +61,8 @@ def show_kpis(df):
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
+
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
     values = [
         (df["Remark"] == "✅ Conform").sum(),
         (df["Remark"] == "❌ Missing item").sum(),
@@ -69,11 +71,24 @@ def generate_pie_chart(df):
         (df["Remark"] == "🔁 Reference change").sum()
     ]
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+    fig, ax = plt.subplots(figsize=(3, 3))
 
-    fig, ax = plt.subplots(figsize=(4, 4))
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-    ax.set_title("KPI Distribution (Articles)")
+    wedges, texts, autotexts = ax.pie(
+        values,
+        autopct="%1.1f%%",
+        startangle=90
+    )
+
+    ax.legend(
+        wedges,
+        labels,
+        title="Status",
+        loc="center left",
+        bbox_to_anchor=(-0.5, 0.5)
+    )
+
+    ax.set_title("KPI Distribution")
+
     return fig
 
 # ==============================
@@ -175,6 +190,32 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
+    # ==============================
+    # AUTO DETECT REFERENCE CHANGE
+    # ==============================
+    df["RefGroup"] = None
+    group_id = 1
+
+    for i, row1 in df.iterrows():
+        for j, row2 in df.iterrows():
+
+            if i >= j:
+                continue
+
+            if (
+                row1["Remark"] == "❌ Missing item" and
+                row2["Remark"] == "📦 Packing only" and
+                row1["Description_BOM"] == row2["Description_BOM"] and
+                abs(row1["MP"] - row2["packing_qty"]) <= 1
+            ):
+                df.at[i, "Remark"] = "🔁 Reference change"
+                df.at[j, "Remark"] = "🔁 Reference change"
+
+                df.at[i, "RefGroup"] = group_id
+                df.at[j, "RefGroup"] = group_id
+
+                group_id += 1
+
     result = df[[
         "PN",
         "Description_BOM",
@@ -184,7 +225,8 @@ if run:
         "SAV",
         "Qty (MP+SAV)",
         "Balance",
-        "Remark"
+        "Remark",
+        "RefGroup"
     ]].rename(columns={
         "Description_BOM": "Description",
         "bom_qty": "Qty BOM",
@@ -232,17 +274,7 @@ if "data_ready" in st.session_state:
 
     result = st.session_state["result"]
 
-    # Suggestion
-    st.markdown("### 🧠 Suggested Reference Changes")
-    duplicates = result.groupby("Description").filter(lambda x: x["PN"].nunique() > 1)
-
-    if not duplicates.empty:
-        st.warning("Possible reference changes detected")
-        st.dataframe(duplicates[["PN", "Description", "Remark"]])
-    else:
-        st.success("No suggestion")
-
-    # Pie Chart
+    # KPI Chart
     st.markdown("### 📊 KPI Distribution")
     fig = generate_pie_chart(result)
     st.pyplot(fig)
