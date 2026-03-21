@@ -22,16 +22,16 @@ try:
 except:
     st.title("BOM Comparator")
 
-st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
+st.markdown("## 📊 BOM vs Packing Comparison Tool ⚖️")
 
 # ==============================
 # INPUTS
 # ==============================
-bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
+bom_file = st.file_uploader("📄 Upload BOM file", type=["xlsx", "xls"])
 packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
 
-model_input = st.text_input("📺Enter Model")
-lot_input = st.text_input(" 🔢 Enter Lot Quantity")
+model_input = st.text_input("📺 Enter Model")
+lot_input = st.text_input("🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
@@ -45,70 +45,41 @@ def show_kpis(df):
     missing = (df["Remark"] == "❌ Missing item").sum()
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    ref_change = (df["Remark"] == "🔁 Reference change").sum()
 
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("✅ Conform", conform)
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
+    c5.metric("🔁 Ref change", ref_change)
 
 # ==============================
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
+    values = [
+        (df["Remark"] == "✅ Conform").sum(),
+        (df["Remark"] == "❌ Missing item").sum(),
+        (df["Remark"] == "📦 Packing only").sum(),
+        (df["Remark"] == "⚠ Qty missing").sum(),
+        (df["Remark"] == "🔁 Reference change").sum()
+    ]
 
-    conform = (df["Remark"] == "✅ Conform").sum()
-    missing = (df["Remark"] == "❌ Missing item").sum()
-    packing_only = (df["Remark"] == "📦 Packing only").sum()
-    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
-
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing"]
-    values = [conform, missing, packing_only, qty_missing]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
 
     fig, ax = plt.subplots(figsize=(4, 4))
-
-    ax.pie(
-        values,
-        labels=labels,
-        autopct="%1.1f%%",
-        startangle=90
-    )
-
+    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     ax.set_title("KPI Distribution (Articles)")
-
     return fig
-
-# ==============================
-# TABLE STYLE
-# ==============================
-def highlight_remark_column(df):
-
-    styles = []
-
-    for val in df["Remark"]:
-        if val == "✅ Conform":
-            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
-        elif val == "⚠ Qty missing":
-            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
-        elif val == "❌ Missing item":
-            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
-        elif val == "📦 Packing only":
-            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
-        else:
-            styles.append("")
-
-    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
-    style_df["Remark"] = styles
-    return style_df
 
 # ==============================
 # EXCEL EXPORT
 # ==============================
 def export_excel(df):
-
     output = BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -122,10 +93,11 @@ def export_excel(df):
         "✅ Conform": "C6EFCE",
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE"
+        "📦 Packing only": "BDD7EE",
+        "🔁 Reference change": "D9B3FF"
     }
 
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+    for row in ws.iter_rows(min_row=2):
         remark = row[8].value
         color = color_map.get(remark)
 
@@ -139,7 +111,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION (ONLY ON CLICK)
+# MAIN
 # ==============================
 if run:
 
@@ -163,9 +135,7 @@ if run:
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
 
-    packing["Model"] = packing["Model"].astype(str).str.strip()
-    packing["Model"] = packing["Model"].replace("", None).ffill()
-
+    packing["Model"] = packing["Model"].astype(str).str.strip().replace("", None).ffill()
     packing_model = packing[packing["Model"] == model_input]
 
     if packing_model.empty:
@@ -186,7 +156,6 @@ if run:
 
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
-
     df["Description_BOM"] = df["Description_BOM"].fillna(df["Description_Packing"])
 
     df["MP"] = df["bom_qty"] * lot
@@ -222,69 +191,85 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    # ==============================
-    # SAVE IN SESSION STATE (IMPORTANT FIX)
-    # ==============================
+    result["Select"] = False
+
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY SECTION (PERSISTENT)
+# DISPLAY
 # ==============================
-if "data_ready" in st.session_state and st.session_state["data_ready"]:
+if "data_ready" in st.session_state:
 
     result = st.session_state["result"]
 
     st.success("Comparison completed ✅")
 
-    # KPI
     show_kpis(result)
 
-    st.markdown("---")
+    st.markdown("### ✏️ Editable Table")
 
-    # TABLE
-    styled = result.style.apply(highlight_remark_column, axis=None)
-    st.dataframe(styled, use_container_width=True)
+    edited_df = st.data_editor(
+        result,
+        use_container_width=True,
+        column_config={
+            "Select": st.column_config.CheckboxColumn("Select")
+        }
+    )
 
-    # PIE CHART
-    st.markdown("### 📊 KPI Distribution")
+    col1, col2 = st.columns(2)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("🔁 Mark as Reference Change"):
+            edited_df.loc[edited_df["Select"], "Remark"] = "🔁 Reference change"
+            st.session_state["result"] = edited_df
+            st.success("Applied ✅")
 
     with col2:
-        fig = generate_pie_chart(result)
-        st.pyplot(fig)
+        if st.button("💾 Save modifications"):
+            st.session_state["result"] = edited_df
+            st.success("Saved ✅")
 
-        # ===== PDF EXPORT =====
-        img_buffer = BytesIO()
-        fig.savefig(img_buffer, format="png")
-        img_buffer.seek(0)
+    result = st.session_state["result"]
 
-        pdf_buffer = BytesIO()
-        doc = SimpleDocTemplate(pdf_buffer)
+    # Suggestion
+    st.markdown("### 🧠 Suggested Reference Changes")
+    duplicates = result.groupby("Description").filter(lambda x: x["PN"].nunique() > 1)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            tmp.write(img_buffer.getvalue())
-            tmp_path = tmp.name
+    if not duplicates.empty:
+        st.warning("Possible reference changes detected")
+        st.dataframe(duplicates[["PN", "Description", "Remark"]])
+    else:
+        st.success("No suggestion")
 
-        elements = [RLImage(tmp_path, width=300, height=300)]
-        doc.build(elements)
+    # Pie Chart
+    st.markdown("### 📊 KPI Distribution")
+    fig = generate_pie_chart(result)
+    st.pyplot(fig)
 
-        pdf_buffer.seek(0)
+    # PDF
+    img_buffer = BytesIO()
+    fig.savefig(img_buffer, format="png")
+    img_buffer.seek(0)
 
-        st.download_button(
-            "📄 Download KPI Chart (PDF)",
-            data=pdf_buffer,
-            file_name="KPI_Chart.pdf",
-            mime="application/pdf"
-        )
+    pdf_buffer = BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer)
 
-    # EXCEL DOWNLOAD
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+        tmp.write(img_buffer.getvalue())
+        tmp_path = tmp.name
+
+    doc.build([RLImage(tmp_path, width=300, height=300)])
+
+    pdf_buffer.seek(0)
+
+    st.download_button("📄 Download PDF", pdf_buffer, "KPI.pdf")
+
+    # Excel
     excel_file = export_excel(result)
 
     st.download_button(
-        "📥 Download Excel Result",
+        "📥 Download Excel",
         data=excel_file,
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        file_name="BOM_vs_Packing.xlsx"
     )
