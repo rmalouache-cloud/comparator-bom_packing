@@ -63,7 +63,7 @@ def show_kpis(df):
 # ==============================
 def generate_pie_chart(df):
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Reference Change"]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -78,27 +78,6 @@ def generate_pie_chart(df):
     ax.set_title("KPI Distribution")
 
     return fig
-
-# ==============================
-# REFERENCE CHANGE DETECTION
-# ==============================
-def detect_reference_change(df):
-
-    df = df.copy()
-
-    for i, row in df.iterrows():
-
-        if row["Remark"] == "❌ Missing item":
-
-            match = df[
-                (df["Remark"] == "📦 Packing only") &
-                (df["Description"] == row["Description"])
-            ]
-
-            if not match.empty:
-                df.at[i, "Remark"] = "🔁 Reference Change"
-
-    return df
 
 # ==============================
 # TABLE STYLE
@@ -244,45 +223,74 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    # 🔁 APPLY REFERENCE CHANGE LOGIC
-    result = detect_reference_change(result)
-
-    # 💾 SESSION STATE
+    # ==============================
+    # SESSION STATE + CHECKBOX
+    # ==============================
+    result["Select"] = False
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY (EDITABLE TABLE)
+# DISPLAY
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
-    result = st.session_state["result"]
+    df = st.session_state["result"]
 
     st.success("Comparison completed ✅")
 
-    # ✏️ EDITABLE TABLE
+    # ==============================
+    # EDITABLE TABLE
+    # ==============================
     edited_df = st.data_editor(
-        result,
+        df,
         num_rows="dynamic",
         use_container_width=True,
-        key="editable_table"
+        key="table",
+        column_config={
+            "Select": st.column_config.CheckboxColumn("Select")
+        }
     )
 
-    st.session_state["result"] = edited_df
+    # ==============================
+    # BUTTON REFERENCE CHANGE
+    # ==============================
+    if st.button("🔁 Mark as Reference Change"):
 
+        edited_df.loc[
+            edited_df["Select"] == True,
+            "Remark"
+        ] = "🔁 Reference Change"
+
+        edited_df.loc[
+            edited_df["Select"] == True,
+            "Select"
+        ] = False
+
+        st.session_state["result"] = edited_df
+
+        st.success("Reference Change applied ✅")
+        st.rerun()
+
+    # ==============================
     # KPI
+    # ==============================
     show_kpis(edited_df)
 
     st.markdown("---")
 
+    # ==============================
     # PIE CHART
+    # ==============================
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
         fig = generate_pie_chart(edited_df)
         st.pyplot(fig)
 
-    # EXCEL EXPORT
+    # ==============================
+    # EXPORT EXCEL
+    # ==============================
     excel_file = export_excel(edited_df)
 
     st.download_button(
