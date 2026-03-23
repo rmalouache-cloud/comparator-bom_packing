@@ -18,20 +18,20 @@ st.set_page_config(page_title="BOM Comparator", layout="wide")
 # ==============================
 try:
     logo = Image.open("logo.jfif")
-    st.image(logo, width=1500)
+    st.image(logo, width=220)
 except:
     st.title("BOM Comparator")
 
-st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
+st.markdown("## 📦 BOM vs Packing Comparison Tool")
 
 # ==============================
 # INPUTS
 # ==============================
-bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
-packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
+bom_file = st.file_uploader("📥 Upload BOM file", type=["xlsx", "xls"])
+packing_file = st.file_uploader("📥 Upload Packing file", type=["xlsx", "xls"])
 
-model_input = st.text_input("📺Enter Model")
-lot_input = st.text_input(" 🔢 Enter Lot Quantity")
+model_input = st.text_input("Enter Model")
+lot_input = st.text_input("Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
