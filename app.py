@@ -48,11 +48,17 @@ def show_kpis(df):
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
 
 # ==============================
-# PIE CHART
+# PIE CHART + CLEAN LEGEND
 # ==============================
 def generate_kpi_chart(df):
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+    labels = [
+        "Conform",
+        "Missing",
+        "Packing Only",
+        "Qty Missing",
+        "Ref Change"
+    ]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -65,17 +71,22 @@ def generate_kpi_chart(df):
     colors = ["#2E7D32", "#C62828", "#1565C0", "#F9A825", "#6A1B9A"]
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.pie(values, colors=colors, startangle=90)
+
+    # ❌ no labels in pie (important fix)
+    wedges, _ = ax.pie(
+        values,
+        colors=colors,
+        startangle=90
+    )
+
     ax.set_title("KPI Distribution")
 
-    return fig, labels, values, colors
+    total = sum(values)
 
-# ==============================
-# EXCEL EXPORT
-# ==============================
+    return fig, labels, values, colors, total
 def export_excel(df):
 
-    df_export = df.drop(columns=["Select"], errors="ignore")
+    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
 
     output = BytesIO()
 
@@ -105,15 +116,18 @@ def export_excel(df):
 
         if color:
             for cell in row:
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+                cell.fill = PatternFill(
+                    start_color=color,
+                    end_color=color,
+                    fill_type="solid"
+                )
 
     final = BytesIO()
     wb.save(final)
     final.seek(0)
     return final
-
 # ==============================
-# MAIN
+# MAIN PROCESS
 # ==============================
 if run:
 
@@ -174,7 +188,14 @@ if run:
         "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
     ]]
 
+    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
+
+    for c in num_cols:
+        result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
+
+    result["Comment"] = ""
     result["Select"] = False
+
     st.session_state["result"] = result
 
 # ==============================
@@ -188,16 +209,11 @@ if "result" in st.session_state:
 
     show_kpis(df)
 
-    # ==============================
-    # ONE TABLE ONLY
-    # ==============================
     edited_df = st.data_editor(
         df,
         use_container_width=True,
         key="table",
-        column_config={
-            "Select": st.column_config.CheckboxColumn("Select")
-        }
+        column_config={"Select": st.column_config.CheckboxColumn("Select")}
     )
 
     st.session_state["result"] = edited_df
@@ -222,7 +238,9 @@ if "result" in st.session_state:
                 for i in idx:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Select"] = False
+                        df.loc[i, "Comment"] = "Original BOM item"
+
+                    df.loc[i, "Select"] = False
 
                 st.session_state["result"] = df
                 st.success("🔁 Reference Change applied")
@@ -231,11 +249,11 @@ if "result" in st.session_state:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
     # ==============================
-    # KPI CHART + LEGEND
+    # KPI CHART + LEGEND (NEW DESIGN)
     # ==============================
     st.markdown("### 📊 KPI Distribution")
 
-    fig, labels, values, colors = generate_kpi_chart(df)
+    fig, labels, values, colors, total = generate_kpi_chart(df)
 
     col1, col2 = st.columns([2, 1])
 
@@ -243,10 +261,11 @@ if "result" in st.session_state:
         st.pyplot(fig)
 
     with col2:
-        total = sum(values)
+        st.markdown("### 🧾 Legend")
 
         for label, value, color in zip(labels, values, colors):
-            percent = (value / total * 100) if total else 0
+
+            percent = (value / total * 100) if total > 0 else 0
 
             st.markdown(
                 f"""
@@ -257,9 +276,30 @@ if "result" in st.session_state:
                 """,
                 unsafe_allow_html=True
             )
+# ==============================
+# TABLE STYLE
+# ==============================
+def highlight_remark_column(df):
 
+    styles = []
+
+    for val in df["Remark"]:
+        if val == "✅ Conform":
+            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
+        elif val == "⚠ Qty missing":
+            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
+        elif val == "❌ Missing item":
+            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
+        elif val == "📦 Packing only":
+            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
+        else:
+            styles.append("")
+
+    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
+    style_df["Remark"] = styles
+    return style_df
     # ==============================
-    # DOWNLOAD
+    # EXPORT
     # ==============================
     excel_file = export_excel(df)
 
