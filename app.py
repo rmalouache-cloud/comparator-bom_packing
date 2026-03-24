@@ -55,7 +55,7 @@ def show_kpis(df):
 # PIE CHART
 # ==============================
 
-       def generate_pie_chart(df):
+def generate_pie_chart(df):
 
     labels = [
         "Conform",
