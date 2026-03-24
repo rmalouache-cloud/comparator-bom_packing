@@ -227,27 +227,25 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     # ==============================
     if st.button("🔁 Reference Change"):
 
-        selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
+    selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
 
-        if len(selected_idx) < 2:
-            st.warning("Select at least 2 articles")
-        else:
-            half = len(selected_idx) // 2
+    if len(selected_idx) < 2:
+        st.warning("Select at least 2 articles")
 
-            for i, idx in enumerate(selected_idx):
-                if i < half:
-                    edited_df.at[idx, "Remark"] = "🔁 Reference change"
-                else:
-                    edited_df.at[idx, "Remark"] = "📦 Packing only"
+    else:
+        half = len(selected_idx) // 2
 
-            st.session_state["result"] = edited_df.copy()
-            st.success("Reference Change applied ✅")
+        # IMPORTANT: travailler sur une copie stable
+        updated_df = edited_df.copy()
 
-    result = st.session_state["result"]
+        for i, idx in enumerate(selected_idx):
+            if i < half:
+                updated_df.at[idx, "Remark"] = "🔁 Reference change"
+            else:
+                updated_df.at[idx, "Remark"] = "🔁 Replacement"
 
-    show_kpis(result)
+        # 🔥 update session state (IMPORTANT)
+        st.session_state["result"] = updated_df
 
-    st.markdown("---")
-
-    fig = generate_pie_chart(result)
-    st.pyplot(fig)
+        # 🔥 force refresh UI propre
+        st.rerun()
