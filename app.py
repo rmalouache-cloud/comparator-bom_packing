@@ -35,7 +35,6 @@ lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
-
 # ==============================
 # KPI
 # ==============================
@@ -77,7 +76,7 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# ✅ STYLE FIX (IMPORTANT)
+# TABLE STYLE (INCHANGÉ)
 # ==============================
 def highlight_remark_column(row):
 
@@ -93,22 +92,9 @@ def highlight_remark_column(row):
         styles[-1] = "background-color: #0D47A1; color: white; font-weight: bold;"
 
     return styles
-# ==============================
-# 🔁 REF CHANGE (FIXED BUTTON)
-# ==============================
-colA, colB = st.columns([1, 3])
 
-with colA:
-    if st.button("🔁 Ref Change"):
-        st.session_state["ref_change_mode"] = not st.session_state.get("ref_change_mode", False)
-
-with colB:
-    if st.session_state.get("ref_change_mode", False):
-        st.success("🔁 Mode changement de référence ACTIVÉ")
-    else:
-        st.info("Mode normal")
 # ==============================
-# EXCEL EXPORT
+# EXCEL EXPORT (INCHANGÉ)
 # ==============================
 def export_excel(df):
 
@@ -225,6 +211,9 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
+    # ✅ AJOUT COLONNE SANS TOUCHER AU RESTE
+    result["🔁 Ref Change"] = False
+
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
@@ -241,17 +230,21 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.markdown("---")
 
-    styled = result.style.apply(highlight_remark_column, axis=1)
+    # ✅ TABLE INTERACTIVE (SEULE MODIF)
+    edited_df = st.data_editor(
+        result,
+        use_container_width=True
+    )
 
-    # IMPORTANT: utiliser write au lieu de dataframe
-    st.write(styled)
+    # sauvegarde
+    st.session_state["result"] = edited_df
 
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        fig = generate_pie_chart(result)
+        fig = generate_pie_chart(edited_df)
         st.pyplot(fig)
 
         img_buffer = BytesIO()
@@ -277,7 +270,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
             mime="application/pdf"
         )
 
-    excel_file = export_excel(result)
+    excel_file = export_excel(edited_df)
 
     st.download_button(
         "📥 Download Excel Result",
