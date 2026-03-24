@@ -22,7 +22,7 @@ try:
 except:
     st.title("BOM Comparator")
 
-st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
+st.markdown("## 📊 BOM vs Packing Comparison Tool ⚖️")
 
 # ==============================
 # INPUTS
@@ -65,14 +65,7 @@ def show_kpis(df):
 # ==============================
 def generate_pie_chart(df):
 
-    labels = [
-        "Conform",
-        "Missing",
-        "Packing Only",
-        "Qty Missing",
-        "Ref Change",
-        "Replacement"
-    ]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -90,7 +83,7 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# STYLE TABLE
+# TABLE STYLE
 # ==============================
 def highlight_remark_column(df):
 
@@ -117,7 +110,7 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# MAIN
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -201,7 +194,7 @@ if run:
     })
 
     # ==============================
-    # ADD SELECTION COLUMN
+    # ADD SELECT COLUMN (IMPORTANT FIX)
     # ==============================
     result["Select"] = False
 
@@ -209,7 +202,7 @@ if run:
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY
+# DISPLAY SECTION
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
@@ -218,18 +211,26 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.success("Comparison completed ✅")
 
     # ==============================
-    # EDITABLE TABLE
+    # DATA EDITOR (SAFE)
     # ==============================
     edited_df = st.data_editor(
         result,
         use_container_width=True,
-        num_rows="fixed"
+        num_rows="fixed",
+        key="editor"
     )
+
+    # 🔥 FIX IMPORTANT: force Select always exists
+    if "Select" not in edited_df.columns:
+        edited_df = result.copy()
+        edited_df["Select"] = False
+
+    edited_df["Select"] = edited_df["Select"].fillna(False).astype(bool)
 
     st.session_state["result"] = edited_df
 
     # ==============================
-    # BUTTON REF CHANGE
+    # BUTTON REFERENCE CHANGE
     # ==============================
     if st.button("🔁 Reference Change"):
 
@@ -259,7 +260,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.markdown("---")
 
     # ==============================
-    # TABLE STYLE
+    # STYLED TABLE
     # ==============================
     styled = result.style.apply(highlight_remark_column, axis=None)
     st.dataframe(styled, use_container_width=True)
