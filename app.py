@@ -6,16 +6,11 @@ from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
 from reportlab.platypus import SimpleDocTemplate, Image as RLImage
-import tempfile
 
-# ==============================
 # CONFIG
-# ==============================
 st.set_page_config(page_title="BOM Comparator", layout="wide")
 
-# ==============================
 # LOGO
-# ==============================
 try:
     logo = Image.open("logo.jfif")
     st.image(logo, width=1500)
@@ -24,9 +19,7 @@ except:
 
 st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
 
-# ==============================
 # INPUTS
-# ==============================
 bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
 packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
 
@@ -35,50 +28,57 @@ lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
-# ==============================
-# KPI (DONUT)
-# ==============================
-def generate_pie_chart(df):
-
+# KPI
+def show_kpis(df):
     conform = (df["Remark"] == "✅ Conform").sum()
     missing = (df["Remark"] == "❌ Missing item").sum()
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
 
-    labels = ["🟢 Conform", "🔴 Missing", "🔵 Packing Only", "🟠 Qty Missing", "🟣 Ref Change"]
+    st.markdown("### 📊 KPI Summary")
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    c1.metric("✅ Conform", conform)
+    c2.metric("❌ Missing", missing)
+    c3.metric("📦 Packing only", packing_only)
+    c4.metric("⚠ Qty missing", qty_missing)
+    c5.metric("🔁 Ref Change", ref_change)
+
+    # 🎨 légende couleurs
+    st.markdown("""
+    🟢 Conform &nbsp;&nbsp;
+    🔴 Missing &nbsp;&nbsp;
+    🔵 Packing Only &nbsp;&nbsp;
+    🟠 Qty Missing &nbsp;&nbsp;
+    🟣 Ref Change
+    """)
+
+# PIE
+def generate_pie_chart(df):
+    conform = (df["Remark"] == "✅ Conform").sum()
+    missing = (df["Remark"] == "❌ Missing item").sum()
+    packing_only = (df["Remark"] == "📦 Packing only").sum()
+    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    ref_change = (df["Remark"] == "🔁 Reference Change").sum()
+
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
     values = [conform, missing, packing_only, qty_missing, ref_change]
 
-    colors = ["#2E7D32", "#C62828", "#1565C0", "#EF6C00", "#6A1B9A"]
-
     fig, ax = plt.subplots(figsize=(4, 4))
-
-    wedges, texts, autotexts = ax.pie(
-        values,
-        labels=labels,
-        colors=colors,
-        autopct="%1.1f%%",
-        startangle=90,
-        wedgeprops=dict(width=0.4)  # DONUT
-    )
-
-    # centre vide + total
-    total = sum(values)
-    ax.text(0, 0, f"{total}\nTotal", ha="center", va="center", fontsize=12, fontweight="bold")
-
-    ax.set_title("KPI Distribution")
-
+    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     return fig
 
-# ==============================
-# TABLE COLOR (EXCEL EXPORT)
-# ==============================
+# EXCEL EXPORT
 def export_excel(df):
 
-    output = BytesIO()
+    # ❌ supprimer colonnes inutiles
+    df_export = df.drop(columns=["Select"], errors="ignore")
 
+    output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Result")
+        df_export.to_excel(writer, index=False)
 
     output.seek(0)
     wb = load_workbook(output)
@@ -89,7 +89,8 @@ def export_excel(df):
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
         "📦 Packing only": "BDD7EE",
-        "🔁 Reference Change": "D9D2E9"
+        "🔁 Reference Change": "D9D2E9",
+        "🔄 Replacement": "B2EBF2"
     }
 
     for row in ws.iter_rows(min_row=2):
@@ -103,9 +104,7 @@ def export_excel(df):
     final.seek(0)
     return final
 
-# ==============================
 # MAIN
-# ==============================
 if run:
 
     lot = int(lot_input)
@@ -122,14 +121,7 @@ if run:
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
     packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
 
-    df = pd.merge(
-        bom_g,
-        packing_g,
-        on="PN",
-        how="outer",
-        suffixes=("_BOM", "_Packing"),
-        indicator=True
-    )
+    df = pd.merge(bom_g, packing_g, on="PN", how="outer", suffixes=("_BOM", "_Packing"), indicator=True)
 
     df["bom_qty"] = df["bom_qty"].fillna(0)
     df["packing_qty"] = df["packing_qty"].fillna(0)
@@ -151,68 +143,63 @@ if run:
 
     df["Remark"] = df.apply(detect, axis=1)
 
-    result = df[[
-        "PN",
-        "Description_BOM",
-        "bom_qty",
-        "packing_qty",
-        "MP",
-        "SAV",
-        "Qty (MP+SAV)",
-        "Balance",
-        "Remark"
-    ]].rename(columns={
-        "Description_BOM": "Description",
-        "bom_qty": "Qty BOM",
-        "packing_qty": "Packing list qty"
-    })
+    result = df[["PN","Description_BOM","bom_qty","packing_qty","MP","SAV","Qty (MP+SAV)","Balance","Remark"]]
+    result.columns = ["PN","Description","Qty BOM","Packing list qty","MP","SAV","Qty (MP+SAV)","Balance","Remark"]
+
+    result["Comment"] = ""
+    result["Select"] = False
 
     st.session_state["result"] = result
 
-# ==============================
 # DISPLAY
-# ==============================
 if "result" in st.session_state:
 
-    result = st.session_state["result"]
+    df = st.session_state["result"]
 
-    st.success("Comparison completed ✅")
+    show_kpis(df)
 
-    # KPI DONUT
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("---")
 
-    with col2:
-        fig = generate_pie_chart(result)
-        st.pyplot(fig)
+    # 🎨 colonne couleur visuelle
+    df["Status"] = df["Remark"].apply(lambda x:
+        "🟢" if x=="✅ Conform" else
+        "🔴" if x=="❌ Missing item" else
+        "🔵" if x=="📦 Packing only" else
+        "🟠" if x=="⚠ Qty missing" else
+        "🟣" if x=="🔁 Reference Change" else ""
+    )
 
-    # TABLE COLOR (EXCEL STYLE VIEW)
-    def highlight_remark_column(df):
-        styles = []
-        for val in df["Remark"]:
-            if val == "✅ Conform":
-                styles.append("background-color: #1B5E20; color: white;")
-            elif val == "⚠ Qty missing":
-                styles.append("background-color: #F57F17; color: black;")
-            elif val == "❌ Missing item":
-                styles.append("background-color: #B71C1C; color: white;")
-            elif val == "📦 Packing only":
-                styles.append("background-color: #0D47A1; color: white;")
-            elif val == "🔁 Reference Change":
-                styles.append("background-color: #6A1B9A; color: white;")
-            else:
-                styles.append("")
-        style_df = pd.DataFrame("", index=df.index, columns=df.columns)
-        style_df["Remark"] = styles
-        return style_df
+    edited = st.data_editor(df, use_container_width=True)
 
-    st.dataframe(result.style.apply(highlight_remark_column, axis=None), use_container_width=True)
+    st.session_state["result"] = edited
 
-    # EXPORT EXCEL
-    excel_file = export_excel(result)
+    # 🔁 REF CHANGE
+    if st.button("🔁 Apply Reference Change"):
+
+        selected = edited[edited["Select"] == True]
+
+        if len(selected) == 2:
+            idx = selected.index
+
+            for i in idx:
+                if edited.loc[i, "Remark"] == "❌ Missing item":
+                    edited.loc[i, "Remark"] = "🔁 Reference Change"
+                    edited.loc[i, "Comment"] = "Original BOM item"
+                else:
+                    edited.loc[i, "Remark"] = "🔄 Replacement"
+                    edited.loc[i, "Comment"] = "Replacement item"
+
+                edited.loc[i, "Select"] = False
+
+            st.session_state["result"] = edited
+            st.success("Reference Change applied")
+
+    st.pyplot(generate_pie_chart(st.session_state["result"]))
+
+    excel_file = export_excel(st.session_state["result"])
 
     st.download_button(
-        "📥 Download Excel Result",
-        data=excel_file,
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "📥 Download Excel",
+        data=excel_file.getvalue(),
+        file_name="BOM_vs_Packing.xlsx"
     )
