@@ -73,9 +73,12 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# TABLE STYLE
+# TABLE STYLE (SAFE VERSION)
 # ==============================
 def highlight_remark_column(df):
+
+    if "Remark" not in df.columns:
+        return pd.DataFrame("", index=df.index, columns=df.columns)
 
     styles = []
 
@@ -102,7 +105,7 @@ def export_excel(df):
 
     output = BytesIO()
 
-    export_df = df.drop(columns=["Select"], errors="ignore")
+    export_df = df.drop(columns=["Select", "Remark"], errors="ignore")
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         export_df.to_excel(writer, index=False, sheet_name="Result")
@@ -120,11 +123,11 @@ def export_excel(df):
 
     headers = [cell.value for cell in ws[1]]
 
-    remark_col = headers.index("Remark") + 1 if "Remark" in headers else None
+    if "Remark" in headers:
+        idx = headers.index("Remark") + 1
 
-    if remark_col:
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-            remark = row[remark_col - 1].value
+            remark = row[idx - 1].value
             color = color_map.get(remark)
 
             if color:
@@ -141,7 +144,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -206,6 +209,9 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
+    # ==============================
+    # RESULT (NO STATUS DISPLAY)
+    # ==============================
     result = df[[
         "PN",
         "Description_BOM",
@@ -213,10 +219,10 @@ if run:
         "packing_qty",
         "MP",
         "SAV",
-        "Qty (MP+SAV)",
-        "Remark"
+        "Qty (MP+SAV)"
     ]].rename(columns={"Description_BOM": "Description"})
 
+    result["Remark"] = df["Remark"]
     result["Select"] = False
 
     st.session_state["result"] = result
@@ -234,7 +240,7 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # 📊 TABLE (Remark hidden)
+    # 📊 TABLE WITHOUT STATUS
     display_df = result.drop(columns=["Remark"], errors="ignore")
 
     styled = display_df.style.apply(highlight_remark_column, axis=None)
@@ -251,9 +257,6 @@ if "result" in st.session_state:
     with col1:
         fig = generate_pie_chart(result)
         st.pyplot(fig)
-
-    with col2:
-        st.info("Distribution des statuts calculés automatiquement")
 
     # ==============================
     # DOWNLOAD EXCEL
