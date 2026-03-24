@@ -14,12 +14,6 @@ import tempfile
 st.set_page_config(page_title="BOM Comparator", layout="wide")
 
 # ==============================
-# SESSION STATE INIT
-# ==============================
-if "ref_change_mode" not in st.session_state:
-    st.session_state["ref_change_mode"] = False
-
-# ==============================
 # LOGO
 # ==============================
 try:
@@ -42,107 +36,85 @@ lot_input = st.text_input("🔢 Enter Lot Quantity")
 run = st.button("🚀 Compare")
 
 # ==============================
-# REF CHANGE BUTTON
-# ==============================
-if st.button("🔁 Sélection changement de référence"):
-    st.session_state["ref_change_mode"] = not st.session_state["ref_change_mode"]
-
-if st.session_state["ref_change_mode"]:
-    st.success("🔁 Mode changement de référence ACTIVÉ")
-else:
-    st.info("Mode normal")
-
-# ==============================
 # KPI
 # ==============================
 def show_kpis(df):
+
     total = len(df)
 
     conform = (df["Remark"] == "✅ Conform").sum()
     missing = (df["Remark"] == "❌ Missing item").sum()
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    ref_change = (df["Remark"] == "🔁 Reference change").sum()
+    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
     c1.metric("✅ Conform", conform)
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
+    c5.metric("🔁 Ref Change", ref_change)
+    c6.metric("🔄 Replacement", replacement)
 
 # ==============================
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
 
-    conform = (df["Remark"] == "✅ Conform").sum()
-    missing = (df["Remark"] == "❌ Missing item").sum()
-    packing_only = (df["Remark"] == "📦 Packing only").sum()
-    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    labels = [
+        "Conform",
+        "Missing",
+        "Packing Only",
+        "Qty Missing",
+        "Ref Change",
+        "Replacement"
+    ]
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing"]
-    values = [conform, missing, packing_only, qty_missing]
+    values = [
+        (df["Remark"] == "✅ Conform").sum(),
+        (df["Remark"] == "❌ Missing item").sum(),
+        (df["Remark"] == "📦 Packing only").sum(),
+        (df["Remark"] == "⚠ Qty missing").sum(),
+        (df["Remark"] == "🔁 Reference change").sum(),
+        (df["Remark"] == "🔄 Replacement").sum()
+    ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
-
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-    ax.set_title("KPI Distribution (Articles)")
+    ax.set_title("KPI Distribution")
 
     return fig
 
 # ==============================
-# STYLE (INCHANGÉ)
+# STYLE TABLE
 # ==============================
-def highlight_remark_column(row):
+def highlight_remark_column(df):
 
-    styles = [""] * len(row)
+    styles = []
 
-    if row["Remark"] == "✅ Conform":
-        styles[-1] = "background-color: #1B5E20; color: white; font-weight: bold;"
-    elif row["Remark"] == "⚠ Qty missing":
-        styles[-1] = "background-color: #F57F17; color: black; font-weight: bold;"
-    elif row["Remark"] == "❌ Missing item":
-        styles[-1] = "background-color: #B71C1C; color: white; font-weight: bold;"
-    elif row["Remark"] == "📦 Packing only":
-        styles[-1] = "background-color: #0D47A1; color: white; font-weight: bold;"
+    for val in df["Remark"]:
+        if val == "✅ Conform":
+            styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
+        elif val == "⚠ Qty missing":
+            styles.append("background-color:#F57F17;color:black;font-weight:bold;")
+        elif val == "❌ Missing item":
+            styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
+        elif val == "📦 Packing only":
+            styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
+        elif val == "🔁 Reference change":
+            styles.append("background-color:#6A1B9A;color:white;font-weight:bold;")
+        elif val == "🔄 Replacement":
+            styles.append("background-color:#283593;color:white;font-weight:bold;")
+        else:
+            styles.append("")
 
-    return styles
-
-# ==============================
-# EXCEL EXPORT (INCHANGÉ)
-# ==============================
-def export_excel(df):
-
-    output = BytesIO()
-
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Result")
-
-    output.seek(0)
-    wb = load_workbook(output)
-    ws = wb.active
-
-    color_map = {
-        "✅ Conform": "C6EFCE",
-        "⚠ Qty missing": "FFEB9C",
-        "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE"
-    }
-
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        remark = row[8].value
-        color = color_map.get(remark)
-
-        if color:
-            for cell in row:
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
-
-    final = BytesIO()
-    wb.save(final)
-    final.seek(0)
-    return final
+    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
+    style_df["Remark"] = styles
+    return style_df
 
 # ==============================
 # MAIN
@@ -229,75 +201,73 @@ if run:
     })
 
     # ==============================
-    # 🔁 REF CHANGE COLUMN
+    # ADD SELECTION COLUMN
     # ==============================
-    if st.session_state["ref_change_mode"]:
-        result["🔁 Ref Change"] = False
+    result["Select"] = False
 
-        st.warning("Mode sélection activé")
-
-        edited_df = st.data_editor(
-            result,
-            use_container_width=True
-        )
-
-        st.session_state["result"] = edited_df
-
-    else:
-        styled = result.style.apply(highlight_remark_column, axis=1)
-        st.write(styled)
-
-        st.session_state["result"] = result
+    st.session_state["result"] = result
+    st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY (optional persistence)
+# DISPLAY
 # ==============================
-if "result" in st.session_state:
+if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     result = st.session_state["result"]
 
-    st.success("Ready ✅")
+    st.success("Comparison completed ✅")
 
+    # ==============================
+    # EDITABLE TABLE
+    # ==============================
+    edited_df = st.data_editor(
+        result,
+        use_container_width=True,
+        num_rows="fixed"
+    )
+
+    st.session_state["result"] = edited_df
+
+    # ==============================
+    # BUTTON REF CHANGE
+    # ==============================
+    if st.button("🔁 Reference Change"):
+
+        selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
+
+        if len(selected_idx) < 2:
+            st.warning("Select at least 2 articles")
+        else:
+            half = len(selected_idx) // 2
+
+            for i, idx in enumerate(selected_idx):
+                if i < half:
+                    edited_df.at[idx, "Remark"] = "🔁 Reference change"
+                else:
+                    edited_df.at[idx, "Remark"] = "🔄 Replacement"
+
+            st.session_state["result"] = edited_df
+            st.success("Reference Change applied ✅")
+
+    result = st.session_state["result"]
+
+    # ==============================
+    # KPI
+    # ==============================
     show_kpis(result)
 
     st.markdown("---")
 
+    # ==============================
+    # TABLE STYLE
+    # ==============================
+    styled = result.style.apply(highlight_remark_column, axis=None)
+    st.dataframe(styled, use_container_width=True)
+
+    # ==============================
+    # PIE CHART
+    # ==============================
     st.markdown("### 📊 KPI Distribution")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-
-    with col2:
-        fig = generate_pie_chart(result)
-        st.pyplot(fig)
-
-        img_buffer = BytesIO()
-        fig.savefig(img_buffer, format="png")
-        img_buffer.seek(0)
-
-        pdf_buffer = BytesIO()
-        doc = SimpleDocTemplate(pdf_buffer)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            tmp.write(img_buffer.getvalue())
-            tmp_path = tmp.name
-
-        elements = [RLImage(tmp_path, width=300, height=300)]
-        doc.build(elements)
-
-        pdf_buffer.seek(0)
-
-        st.download_button(
-            "📄 Download KPI Chart (PDF)",
-            data=pdf_buffer,
-            file_name="KPI_Chart.pdf",
-            mime="application/pdf"
-        )
-
-    excel_file = export_excel(result)
-
-    st.download_button(
-        "📥 Download Excel Result",
-        data=excel_file,
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    fig = generate_pie_chart(result)
+    st.pyplot(fig)
