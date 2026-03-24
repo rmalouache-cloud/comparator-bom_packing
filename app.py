@@ -74,38 +74,37 @@ def generate_pie_chart(df):
     ]
 
     colors = [
-        "#2ecc71",  # Conform (green)
-        "#e74c3c",  # Missing (red)
-        "#f39c12",  # Packing only (orange)
-        "#3498db",  # Qty missing (blue)
-        "#9b59b6"   # Ref change (purple)
+        "#2ecc71",
+        "#e74c3c",
+        "#f39c12",
+        "#3498db",
+        "#9b59b6"
+    ]
+
+    total = sum(values)
+
+    # 🔥 légende avec % inclus
+    legend_labels = [
+        f"🟢 Conform ({values[0]} - {values[0]/total*100:.1f}%)",
+        f"🔴 Missing ({values[1]} - {values[1]/total*100:.1f}%)",
+        f"🟠 Packing Only ({values[2]} - {values[2]/total*100:.1f}%)",
+        f"🔵 Qty Missing ({values[3]} - {values[3]/total*100:.1f}%)",
+        f"🟣 Ref Change ({values[4]} - {values[4]/total*100:.1f}%)"
     ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    wedges, _, autotexts = ax.pie(
+    # 🔥 cercle SANS texte ni %
+    wedges, _ = ax.pie(
         values,
         colors=colors,
-        startangle=90,
-        autopct="%1.1f%%",
-        pctdistance=0.75
+        startangle=90
     )
 
-    # 🔥 % style propre
-    for autotext in autotexts:
-        autotext.set_fontsize(10)
-        autotext.set_weight("bold")
-        autotext.set_color("black")
+    # ❌ aucun texte sur le cercle
+    ax.set_title("KPI Distribution", fontsize=11)
 
-    # 🔥 LÉGENDE AVEC CODE COULEUR (CE QUE TU DEMANDES)
-    legend_labels = [
-        "🟢 Conform",
-        "🔴 Missing",
-        "🟠 Packing Only",
-        "🔵 Qty Missing",
-        "🟣 Ref Change"
-    ]
-
+    # 🔥 légende propre avec code couleur + %
     ax.legend(
         wedges,
         legend_labels,
@@ -114,12 +113,9 @@ def generate_pie_chart(df):
         fontsize=9
     )
 
-    ax.set_title("KPI Distribution", fontsize=11)
-
     plt.tight_layout()
 
     return fig
- 
 
 # ==============================
 # MAIN
