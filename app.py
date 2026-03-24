@@ -16,7 +16,7 @@ st.set_page_config(page_title="BOM Comparator", layout="wide")
 # ==============================
 try:
     logo = Image.open("logo.jfif")
-    st.image(logo, width=1500)
+    st.image(logo, width=1200)
 except:
     st.title("BOM Comparator")
 
@@ -37,9 +37,7 @@ run = st.button("🚀 Compare")
 # KPI
 # ==============================
 def show_kpis(df):
-    total = len(df)
-
-    st.markdown(f"### 📊 Total Articles: {total}")
+    st.markdown(f"### 📊 Total Articles: {len(df)}")
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -67,18 +65,22 @@ def generate_pie_chart(df):
 # ==============================
 # COLOR STYLE
 # ==============================
-def highlight_remark(df):
+def highlight(df):
     styles = []
 
-    for val in df["Remark"]:
-        if val == "✅ Conform":
+    for v in df["Remark"]:
+        if v == "✅ Conform":
             styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
-        elif val == "❌ Missing item":
+        elif v == "❌ Missing item":
             styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
-        elif val == "📦 Packing only":
+        elif v == "📦 Packing only":
             styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
-        elif val == "⚠ Qty missing":
+        elif v == "⚠ Qty missing":
             styles.append("background-color:#F57F17;color:black;font-weight:bold;")
+        elif v == "🔁 Reference Change":
+            styles.append("background-color:#6A1B9A;color:white;font-weight:bold;")
+        elif v == "🔄 Replacement":
+            styles.append("background-color:#00838F;color:white;font-weight:bold;")
         else:
             styles.append("")
 
@@ -91,7 +93,7 @@ def highlight_remark(df):
 # ==============================
 def export_excel(df):
 
-    df_export = df.drop(columns=["Status"], errors="ignore")
+    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
 
     output = BytesIO()
 
@@ -107,6 +109,8 @@ def export_excel(df):
         "❌ Missing item": "FFC7CE",
         "📦 Packing only": "BDD7EE",
         "⚠ Qty missing": "FFEB9C",
+        "🔁 Reference Change": "D9D2E9",
+        "🔄 Replacement": "B2EBF2",
     }
 
     remark_col = None
@@ -162,12 +166,16 @@ if run:
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
     packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
 
-    df = pd.merge(bom_g, packing_g, on="PN", how="outer", suffixes=("_BOM", "_Packing"))
+    df = pd.merge(
+        bom_g,
+        packing_g,
+        on=["PN", "Description"],
+        how="outer",
+        indicator=True
+    )
 
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
-
-    df["Description_BOM"] = df["Description_BOM"].fillna(df["Description_Packing"])
 
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
@@ -175,12 +183,12 @@ if run:
     df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
     def detect(row):
-        if row["packing_qty"] >= row["Qty (MP+SAV)"]:
-            return "✅ Conform"
-        elif row["_merge"] == "left_only":
+        if row["_merge"] == "left_only":
             return "❌ Missing item"
         elif row["_merge"] == "right_only":
             return "📦 Packing only"
+        elif row["packing_qty"] >= row["Qty (MP+SAV)"]:
+            return "✅ Conform"
         else:
             return "⚠ Qty missing"
 
@@ -188,7 +196,7 @@ if run:
 
     result = df[[
         "PN",
-        "Description_BOM",
+        "Description",
         "bom_qty",
         "packing_qty",
         "MP",
@@ -196,24 +204,23 @@ if run:
         "Qty (MP+SAV)",
         "Balance",
         "Remark"
-    ]].rename(columns={
-        "Description_BOM": "Description",
-        "bom_qty": "Qty BOM",
-        "packing_qty": "Packing list qty"
-    })
+    ]]
 
     # ==============================
-    # CLEAN NUMBERS (IMPORTANT)
+    # CLEAN NUMBERS
     # ==============================
-    num_cols = ["Qty BOM", "Packing list qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
+    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
 
     for c in num_cols:
         result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
 
+    result["Comment"] = ""
+    result["Select"] = False
+
     st.session_state["result"] = result
 
 # ==============================
-# DISPLAY (ONLY ONE TABLE)
+# DISPLAY
 # ==============================
 if "result" in st.session_state:
 
@@ -223,18 +230,67 @@ if "result" in st.session_state:
 
     show_kpis(df)
 
-    st.markdown("### 🎨 Colored Table")
+    # ==========================
+    # SELECT PANEL (HIDDEN CLEAN)
+    # ==========================
+    with st.expander("🔧 Selection Panel (Reference Change)", expanded=False):
+        edited_df = st.data_editor(
+            df,
+            use_container_width=True,
+            key="table"
+        )
+        st.session_state["result"] = edited_df
 
-    styled = df.style.apply(highlight_remark, axis=None)
+    # ==========================
+    # ONLY COLORED TABLE (VISIBLE)
+    # ==========================
+    st.markdown("### 🎨 Result Table (Colored)")
+
+    styled = df.style.apply(highlight, axis=None)
     st.dataframe(styled, use_container_width=True)
 
+    # ==========================
+    # REFERENCE CHANGE (UNCHANGED LOGIC)
+    # ==========================
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+            remarks = selected["Remark"].tolist()
+
+            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
+
+                    df.loc[i, "Select"] = False
+
+                st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
+
+            else:
+                st.error("❌ Need 1 Missing + 1 Packing only")
+
+    # ==========================
+    # PIE CHART
+    # ==========================
     st.markdown("### 📊 KPI Distribution")
     fig = generate_pie_chart(df)
     st.pyplot(fig)
 
-    # ==============================
+    # ==========================
     # DOWNLOAD
-    # ==============================
+    # ==========================
     excel_file = export_excel(df)
 
     st.download_button(
