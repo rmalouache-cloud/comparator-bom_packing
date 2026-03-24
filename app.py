@@ -222,6 +222,9 @@ if run:
 # ==============================
 # DISPLAY
 # ==============================
+# ==========================
+# DISPLAY (ONE TABLE ONLY)
+# ==========================
 if "result" in st.session_state:
 
     df = st.session_state["result"]
@@ -230,6 +233,81 @@ if "result" in st.session_state:
 
     show_kpis(df)
 
+    # ==========================
+    # CLEAN NUMBERS DISPLAY
+    # ==========================
+    display_df = df.copy()
+
+    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
+
+    for c in num_cols:
+        display_df[c] = pd.to_numeric(display_df[c], errors="coerce").round(0).astype("Int64")
+
+    # ==========================
+    # SINGLE EDITABLE TABLE
+    # ==========================
+    edited_df = st.data_editor(
+        display_df,
+        use_container_width=True,
+        key="table",
+        column_config={
+            "Select": st.column_config.CheckboxColumn("Select"),
+            "Remark": st.column_config.TextColumn("Remark"),
+        }
+    )
+
+    st.session_state["result"] = edited_df
+
+    # ==========================
+    # REFERENCE CHANGE
+    # ==========================
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+            remarks = selected["Remark"].tolist()
+
+            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
+
+                    df.loc[i, "Select"] = False
+
+                st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
+
+            else:
+                st.error("❌ Need 1 Missing + 1 Packing only")
+
+    # ==========================
+    # PIE CHART
+    # ==========================
+    st.markdown("### 📊 KPI Distribution")
+    fig = generate_pie_chart(df)
+    st.pyplot(fig)
+
+    # ==========================
+    # DOWNLOAD
+    # ==========================
+    excel_file = export_excel(df)
+
+    st.download_button(
+        "📥 Download Excel Result",
+        data=excel_file.getvalue(),
+        file_name="BOM_vs_Packing.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     # ==========================
     # SELECT PANEL (HIDDEN CLEAN)
     # ==========================
