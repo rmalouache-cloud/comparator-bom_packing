@@ -48,10 +48,18 @@ def show_kpis(df):
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
 
 # ==============================
-# PIE CHART
+# PIE CHART + CLEAN LEGEND
 # ==============================
-def generate_pie_chart(df):
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+def generate_kpi_chart(df):
+
+    labels = [
+        "Conform",
+        "Missing",
+        "Packing Only",
+        "Qty Missing",
+        "Ref Change"
+    ]
+
     values = [
         (df["Remark"] == "✅ Conform").sum(),
         (df["Remark"] == "❌ Missing item").sum(),
@@ -60,49 +68,22 @@ def generate_pie_chart(df):
         (df["Remark"] == "🔁 Reference Change").sum(),
     ]
 
-    fig, ax = plt.subplots()
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-    return fig
+    colors = ["#2E7D32", "#C62828", "#1565C0", "#F9A825", "#6A1B9A"]
 
-# ==============================
-# EXPORT EXCEL
-# ==============================
-def export_excel(df):
-    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+    fig, ax = plt.subplots(figsize=(5, 5))
 
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df_export.to_excel(writer, index=False, sheet_name="Result")
+    # ❌ no labels in pie (important fix)
+    wedges, _ = ax.pie(
+        values,
+        colors=colors,
+        startangle=90
+    )
 
-    output.seek(0)
-    wb = load_workbook(output)
-    ws = wb.active
+    ax.set_title("KPI Distribution")
 
-    color_map = {
-        "✅ Conform": "C6EFCE",
-        "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE",
-        "⚠ Qty missing": "FFEB9C",
-        "🔁 Reference Change": "D9D2E9",
-    }
+    total = sum(values)
 
-    remark_col = None
-    for i, cell in enumerate(ws[1], 1):
-        if cell.value == "Remark":
-            remark_col = i
-
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        remark = row[remark_col - 1].value
-        color = color_map.get(remark)
-
-        if color:
-            for cell in row:
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
-
-    final = BytesIO()
-    wb.save(final)
-    final.seek(0)
-    return final
+    return fig, labels, values, colors, total
 
 # ==============================
 # MAIN PROCESS
@@ -144,17 +125,11 @@ if run:
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
 
-    # ==============================
-    # CALCULS
-    # ==============================
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
     df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
     df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
-    # ==============================
-    # REMARK LOGIC
-    # ==============================
     def detect_remark(row):
         if row["_merge"] == "left_only":
             return "❌ Missing item"
@@ -172,8 +147,8 @@ if run:
         "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
     ]]
 
-    # clean numbers
     num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
+
     for c in num_cols:
         result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
 
@@ -197,15 +172,13 @@ if "result" in st.session_state:
         df,
         use_container_width=True,
         key="table",
-        column_config={
-            "Select": st.column_config.CheckboxColumn("Select")
-        }
+        column_config={"Select": st.column_config.CheckboxColumn("Select")}
     )
 
     st.session_state["result"] = edited_df
 
     # ==============================
-    # REFERENCE CHANGE ONLY
+    # REFERENCE CHANGE
     # ==============================
     if st.button("🔁 Apply Reference Change"):
 
@@ -235,11 +208,33 @@ if "result" in st.session_state:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
     # ==============================
-    # PIE CHART
+    # KPI CHART + LEGEND (NEW DESIGN)
     # ==============================
     st.markdown("### 📊 KPI Distribution")
-    fig = generate_pie_chart(df)
-    st.pyplot(fig)
+
+    fig, labels, values, colors, total = generate_kpi_chart(df)
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.pyplot(fig)
+
+    with col2:
+        st.markdown("### 🧾 Legend")
+
+        for label, value, color in zip(labels, values, colors):
+
+            percent = (value / total * 100) if total > 0 else 0
+
+            st.markdown(
+                f"""
+                <div style="display:flex;align-items:center;margin-bottom:8px;">
+                    <div style="width:15px;height:15px;background:{color};margin-right:8px;"></div>
+                    <b>{label}</b>: {value} ({percent:.1f}%)
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     # ==============================
     # EXPORT
