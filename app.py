@@ -56,7 +56,7 @@ def show_kpis(df):
     c5.metric("🔁 Ref Change", ref_change)
 
 # ==============================
-# PIE CHART (NO TEXT INSIDE)
+# PIE CHART
 # ==============================
 def generate_pie_chart(df):
 
@@ -76,7 +76,7 @@ def generate_pie_chart(df):
     return fig, values
 
 # ==============================
-# TABLE COLOR
+# COLOR STYLE (TABLE UI)
 # ==============================
 def highlight_remark_column(df):
     styles = []
@@ -100,34 +100,25 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT
+# EXPORT EXCEL (NO SELECT + NO STATUS)
 # ==============================
 def export_excel(df):
 
     output = BytesIO()
 
+    export_df = df.drop(columns=["Select", "Remark"], errors="ignore")
+
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Result")
+        export_df.to_excel(writer, index=False, sheet_name="Result")
 
     output.seek(0)
     wb = load_workbook(output)
     ws = wb.active
 
-    color_map = {
-        "✅ Conform": "C6EFCE",
-        "⚠ Qty missing": "FFEB9C",
-        "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE",
-        "🔁 Reference Change": "D9D2E9"
-    }
-
+    # no status column -> no coloring needed
     for row in ws.iter_rows(min_row=2):
-        remark = row[8].value
-        color = color_map.get(remark)
-
-        if color:
-            for cell in row:
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        for cell in row:
+            cell.fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
 
     final = BytesIO()
     wb.save(final)
@@ -135,7 +126,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION
+# MAIN
 # ==============================
 if run:
 
@@ -170,7 +161,14 @@ if run:
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
     packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
 
-    df = pd.merge(bom_g, packing_g, on="PN", how="outer", suffixes=("_BOM", "_Packing"), indicator=True)
+    df = pd.merge(
+        bom_g,
+        packing_g,
+        on="PN",
+        how="outer",
+        suffixes=("_BOM", "_Packing"),
+        indicator=True
+    )
 
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
@@ -200,11 +198,9 @@ if run:
         "packing_qty",
         "MP",
         "SAV",
-        "Qty (MP+SAV)",
-        "Remark"
+        "Qty (MP+SAV)"
     ]].rename(columns={"Description_BOM": "Description"})
 
-    result["Comment"] = ""
     result["Select"] = False
 
     st.session_state["result"] = result
@@ -222,14 +218,17 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # TABLE (single + colored)
-    styled = result.style.apply(highlight_remark_column, axis=None)
+    # 📊 TABLE (NO STATUS COLUMN DISPLAYED)
+    display_df = result.drop(columns=[], errors="ignore")
+
+    styled = display_df.style.apply(highlight_remark_column, axis=None)
+
     edited_df = st.data_editor(styled, use_container_width=True, key="table")
 
-    st.session_state["result"] = edited_df
+    st.session_state["result"] = result
 
     # ==============================
-    # 🔁 REFERENCE CHANGE BUTTON (RESTORED)
+    # REFERENCE CHANGE BUTTON
     # ==============================
     if st.button("🔁 Apply Reference Change"):
 
@@ -247,10 +246,8 @@ if "result" in st.session_state:
                 for i in idx:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Comment"] = "Original BOM item"
                     else:
                         df.loc[i, "Remark"] = "🔄 Replacement"
-                        df.loc[i, "Comment"] = "Replaced by new reference"
 
                     df.loc[i, "Select"] = False
 
@@ -261,7 +258,7 @@ if "result" in st.session_state:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
     # ==============================
-    # PIE + LEGEND
+    # PIE CHART
     # ==============================
     st.markdown("### 📊 KPI Distribution")
 
@@ -272,6 +269,7 @@ if "result" in st.session_state:
         st.pyplot(fig)
 
     with col2:
+
         labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
         colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A"]
 
