@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
@@ -60,7 +61,7 @@ def show_kpis(df):
     c6.metric("🔄 Replacement", replacement)
 
 # ==============================
-# PIE CHART (FIXED)
+# PIE CHART
 # ==============================
 def generate_pie_chart(df):
 
@@ -71,63 +72,19 @@ def generate_pie_chart(df):
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
     replacement = (df["Remark"] == "🔄 Replacement").sum()
 
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
     values = [conform, missing, packing_only, qty_missing, ref_change, replacement]
 
-    labels = [
-        "🟢 Conform",
-        "🔴 Missing",
-        "🔵 Packing Only",
-        "🟠 Qty Missing",
-        "🟣 Ref Change",
-        "🟦 Replacement"
-    ]
-
-    colors = [
-        "#2E7D32",
-        "#C62828",
-        "#1565C0",
-        "#EF6C00",
-        "#6A1B9A",
-        "#00838F"
-    ]
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-
-    wedges, texts, autotexts = ax.pie(
-        values,
-        colors=colors,
-        autopct="%1.1f%%",
-        startangle=90,
-        wedgeprops=dict(width=0.4)  # DONUT
-    )
-
-    # ❌ remove overlapping labels
-    for t in texts:
-        t.set_visible(False)
-
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     ax.set_title("KPI Distribution (Articles)")
 
-    total = sum(values)
-
-    legend_labels = [
-        f"{labels[i]} : {values[i]} ({values[i]/total*100:.1f}%)"
-        for i in range(len(values)) if values[i] > 0
-    ]
-
-    ax.legend(
-        wedges,
-        legend_labels,
-        loc="center left",
-        bbox_to_anchor=(1, 0.5)
-    )
-
-    return fig
+    return fig, values
 
 # ==============================
-# TABLE STYLE
+# TABLE STYLE (UI COLOR REMARK)
 # ==============================
 def highlight_remark_column(df):
-
     styles = []
 
     for val in df["Remark"]:
@@ -254,19 +211,17 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
-    result = df[
-        [
-            "PN",
-            "Description_BOM",
-            "bom_qty",
-            "packing_qty",
-            "MP",
-            "SAV",
-            "Qty (MP+SAV)",
-            "Balance",
-            "Remark"
-        ]
-    ].rename(columns={
+    result = df[[
+        "PN",
+        "Description_BOM",
+        "bom_qty",
+        "packing_qty",
+        "MP",
+        "SAV",
+        "Qty (MP+SAV)",
+        "Balance",
+        "Remark"
+    ]].rename(columns={
         "Description_BOM": "Description",
         "bom_qty": "Qty BOM",
         "packing_qty": "Packing list qty"
@@ -290,20 +245,88 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    st.dataframe(
-        result.style.apply(highlight_remark_column, axis=None),
-        use_container_width=True
-    )
+    # ==========================
+    # TABLE (DATA EDITOR)
+    # ==========================
+    edited_df = st.data_editor(result, use_container_width=True, key="table")
+    st.session_state["result"] = edited_df
 
+    # ==========================
+    # COLORIZED VIEW (AJOUT)
+    # ==========================
+    st.markdown("### 🎨 Colored Table View")
+    styled = edited_df.style.apply(highlight_remark_column, axis=None)
+    st.dataframe(styled, use_container_width=True)
+
+    # ==========================
+    # REFERENCE CHANGE
+    # ==========================
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+            remarks = selected["Remark"].tolist()
+
+            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
+
+                    df.loc[i, "Select"] = False
+
+                st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
+
+            else:
+                st.error("❌ Need 1 Missing + 1 Packing only")
+
+    # ==========================
+    # PIE + LEGEND (AJOUT)
+    # ==========================
     st.markdown("### 📊 KPI Distribution")
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2 = st.columns([2, 1])
 
-    with col2:
-        fig = generate_pie_chart(result)
+    with col1:
+        fig, values = generate_pie_chart(st.session_state["result"])
         st.pyplot(fig)
 
-    excel_file = export_excel(result)
+    with col2:
+
+        labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
+        colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A", "#00838F"]
+
+        total = sum(values)
+
+        st.markdown("### 🧾 Legend")
+
+        for label, val, color in zip(labels, values, colors):
+            percent = (val / total * 100) if total else 0
+
+            st.markdown(
+                f"""
+                <div style="display:flex; align-items:center; margin-bottom:6px;">
+                    <div style="width:15px;height:15px;background:{color};margin-right:8px;"></div>
+                    <b>{label}</b> : {val} ({percent:.1f}%)
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    # ==========================
+    # EXCEL DOWNLOAD
+    # ==========================
+    excel_file = export_excel(st.session_state["result"])
 
     st.download_button(
         "📥 Download Excel Result",
