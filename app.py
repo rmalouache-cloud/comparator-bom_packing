@@ -54,7 +54,6 @@ def show_kpis(df):
 # ==============================
 # PIE CHART
 # ==============================
-
 def generate_pie_chart(df):
 
     labels = [
@@ -83,28 +82,24 @@ def generate_pie_chart(df):
 
     total = sum(values)
 
-    # 🔥 légende avec % inclus
     legend_labels = [
-        f"🟢 Conform ( {values[0]/total*100:.1f}%)",
+        f"🟢 Conform ({values[0]/total*100:.1f}%)",
         f"🔴 Missing ({values[1]/total*100:.1f}%)",
-        f"🟠 Packing Only ( {values[2]/total*100:.1f}%)",
-        f"🔵 Qty Missing ( {values[3]/total*100:.1f}%)",
-        f"🟣 Ref Change ( {values[4]/total*100:.1f}%)"
+        f"🟠 Packing Only ({values[2]/total*100:.1f}%)",
+        f"🔵 Qty Missing ({values[3]/total*100:.1f}%)",
+        f"🟣 Ref Change ({values[4]/total*100:.1f}%)"
     ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    # 🔥 cercle SANS texte ni %
     wedges, _ = ax.pie(
         values,
         colors=colors,
         startangle=90
     )
 
-    # ❌ aucun texte sur le cercle
     ax.set_title("KPI Distribution", fontsize=11)
 
-    # 🔥 légende propre avec code couleur + %
     ax.legend(
         wedges,
         legend_labels,
@@ -223,29 +218,34 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.session_state["result"] = edited_df.copy()
 
     # ==============================
-    # BUTTON REFERENCE CHANGE (ONLY 2 STATES)
+    # REFERENCE CHANGE BUTTON FIXED
     # ==============================
     if st.button("🔁 Reference Change"):
 
-    selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
+        selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
 
-    if len(selected_idx) < 2:
-        st.warning("Select at least 2 articles")
+        if len(selected_idx) < 2:
+            st.warning("Select at least 2 articles")
 
-    else:
-        half = len(selected_idx) // 2
+        else:
+            half = len(selected_idx) // 2
 
-        # IMPORTANT: travailler sur une copie stable
-        updated_df = edited_df.copy()
+            updated_df = edited_df.copy()
 
-        for i, idx in enumerate(selected_idx):
-            if i < half:
-                updated_df.at[idx, "Remark"] = "🔁 Reference change"
-            else:
-                updated_df.at[idx, "Remark"] = "🔁 Replacement"
+            for i, idx in enumerate(selected_idx):
+                if i < half:
+                    updated_df.at[idx, "Remark"] = "🔁 Reference change"
+                else:
+                    updated_df.at[idx, "Remark"] = "📦 Replacement"
 
-        # 🔥 update session state (IMPORTANT)
-        st.session_state["result"] = updated_df
+            st.session_state["result"] = updated_df
+            st.rerun()
 
-        # 🔥 force refresh UI propre
-        st.rerun()
+    result = st.session_state["result"]
+
+    show_kpis(result)
+
+    st.markdown("---")
+
+    fig = generate_pie_chart(result)
+    st.pyplot(fig)
