@@ -97,6 +97,10 @@ def highlight_remark_column(df):
             styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
         elif val == "📦 Packing only":
             styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
+        elif val == "🔁 Reference Change":
+            styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
+        elif val == "🔄 Replacement":
+            styles.append("background-color: #00838F; color: white; font-weight: bold;")
         else:
             styles.append("")
 
@@ -122,7 +126,9 @@ def export_excel(df):
         "✅ Conform": "C6EFCE",
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE"
+        "📦 Packing only": "BDD7EE",
+        "🔁 Reference Change": "D9B3FF",
+        "🔄 Replacement": "B2EBF2"
     }
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
@@ -139,7 +145,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION (ONLY ON CLICK)
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -222,14 +228,14 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    # ==============================
-    # SAVE IN SESSION STATE (IMPORTANT FIX)
-    # ==============================
+    # ✅ AJOUT SELECT
+    result["Select"] = False
+
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY SECTION (PERSISTENT)
+# DISPLAY
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
@@ -237,16 +243,34 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.success("Comparison completed ✅")
 
-    # KPI
     show_kpis(result)
 
     st.markdown("---")
 
-    # TABLE
-    styled = result.style.apply(highlight_remark_column, axis=None)
-    st.dataframe(styled, use_container_width=True)
+    # ✅ TABLE EDITABLE
+    edited_df = st.data_editor(result, use_container_width=True)
+    st.session_state["result"] = edited_df
 
-    # PIE CHART
+    # ✅ BOUTON REFERENCE CHANGE
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+
+            df.loc[idx[0], "Remark"] = "🔁 Reference Change"
+            df.loc[idx[1], "Remark"] = "🔄 Replacement"
+
+            st.session_state["result"] = df
+            st.success("✅ Reference change applied")
+
+    # ==============================
+    # PIE CHART + PDF
+    # ==============================
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -255,7 +279,6 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         fig = generate_pie_chart(result)
         st.pyplot(fig)
 
-        # ===== PDF EXPORT =====
         img_buffer = BytesIO()
         fig.savefig(img_buffer, format="png")
         img_buffer.seek(0)
@@ -279,7 +302,6 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
             mime="application/pdf"
         )
 
-    # EXCEL DOWNLOAD
     excel_file = export_excel(result)
 
     st.download_button(
