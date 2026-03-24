@@ -74,33 +74,47 @@ def generate_pie_chart(df):
     ]
 
     colors = [
-        "#2ecc71",  # green
-        "#e74c3c",  # red
-        "#f39c12",  # orange
-        "#3498db",  # blue
-        "#9b59b6"   # purple
+        "#2ecc71",  # Conform (green)
+        "#e74c3c",  # Missing (red)
+        "#f39c12",  # Packing only (orange)
+        "#3498db",  # Qty missing (blue)
+        "#9b59b6"   # Ref change (purple)
     ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
     wedges, _, autotexts = ax.pie(
         values,
-        labels=None,              # ❌ pas de texte autour
         colors=colors,
         startangle=90,
-        autopct="%1.1f%%",       # ✔ pourcentage dans le cercle
-        pctdistance=0.7          # ✔ % bien centré
+        autopct="%1.1f%%",
+        pctdistance=0.75
     )
 
-    # 🔥 style des %
+    # 🔥 % style propre
     for autotext in autotexts:
         autotext.set_fontsize(10)
         autotext.set_weight("bold")
-        autotext.set_color("black")  # pas blanc
+        autotext.set_color("black")
+
+    # 🔥 LÉGENDE AVEC CODE COULEUR (CE QUE TU DEMANDES)
+    legend_labels = [
+        "🟢 Conform",
+        "🔴 Missing",
+        "🟠 Packing Only",
+        "🔵 Qty Missing",
+        "🟣 Ref Change"
+    ]
+
+    ax.legend(
+        wedges,
+        legend_labels,
+        loc="center left",
+        bbox_to_anchor=(1, 0.5),
+        fontsize=9
+    )
 
     ax.set_title("KPI Distribution", fontsize=11)
-
-    # ❌ pas de legend (cercle seul comme demandé)
 
     plt.tight_layout()
 
