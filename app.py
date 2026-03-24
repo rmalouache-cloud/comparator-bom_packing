@@ -73,27 +73,25 @@ def generate_pie_chart(df):
         (df["Remark"] == "🔁 Reference change").sum()
     ]
 
-    # couleurs propres (dashboard style)
     colors = [
-        "#2ecc71",  # vert
-        "#e74c3c",  # rouge
-        "#f39c12",  # orange
-        "#3498db",  # bleu
-        "#9b59b6"   # violet
+        "#2ecc71",
+        "#e74c3c",
+        "#f39c12",
+        "#3498db",
+        "#9b59b6"
     ]
 
-    fig, ax = plt.subplots(figsize=(3, 3)  # 🔥 plus petit cercle
+    fig, ax = plt.subplots(figsize=(3.8, 3.8))
 
     wedges, texts, autotexts = ax.pie(
         values,
         colors=colors,
         startangle=90,
         autopct="%1.1f%%",
-        pctdistance=0.75,   # 🔥 texte % vers centre
-        labeldistance=1.05  # labels à l’extérieur
+        pctdistance=0.75,
+        labeldistance=1.05
     )
 
-    # 🔥 amélioration lisibilité texte
     for text in texts:
         text.set_fontsize(9)
 
@@ -104,7 +102,6 @@ def generate_pie_chart(df):
 
     ax.set_title("KPI Distribution", fontsize=11)
 
-    # 🔥 légende propre à droite (évite superposition)
     ax.legend(
         wedges,
         labels,
@@ -116,6 +113,8 @@ def generate_pie_chart(df):
     plt.tight_layout()
 
     return fig
+   
+ 
 
 # ==============================
 # MAIN
