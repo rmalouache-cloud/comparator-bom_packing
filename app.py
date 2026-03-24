@@ -208,17 +208,34 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.success("Comparison completed ✅")
 
+    # ==============================
+    # ONLY SELECT IS EDITABLE
+    # ==============================
+    columns_config = {
+        "PN": st.column_config.TextColumn(disabled=True),
+        "Description": st.column_config.TextColumn(disabled=True),
+        "Qty BOM": st.column_config.NumberColumn(disabled=True),
+        "Packing list qty": st.column_config.NumberColumn(disabled=True),
+        "MP": st.column_config.NumberColumn(disabled=True),
+        "SAV": st.column_config.NumberColumn(disabled=True),
+        "Qty (MP+SAV)": st.column_config.NumberColumn(disabled=True),
+        "Balance": st.column_config.NumberColumn(disabled=True),
+        "Remark": st.column_config.TextColumn(disabled=True),
+        "Select": st.column_config.CheckboxColumn("Select")
+    }
+
     edited_df = st.data_editor(
         st.session_state["result"],
         use_container_width=True,
         num_rows="fixed",
-        key="editor"
+        key="editor",
+        column_config=columns_config
     )
 
     st.session_state["result"] = edited_df.copy()
 
     # ==============================
-    # REFERENCE CHANGE BUTTON FIXED
+    # REFERENCE CHANGE
     # ==============================
     if st.button("🔁 Reference Change"):
 
