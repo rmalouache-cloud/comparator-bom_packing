@@ -43,14 +43,13 @@ def show_kpis(df):
     total = len(df)
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
     c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
     c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
     c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference change").sum())
-    c6.metric("🔄 Replacement", (df["Remark"] == "🔄 Replacement").sum())
 
 # ==============================
 # PIE CHART
@@ -62,8 +61,7 @@ def generate_pie_chart(df):
         "Missing",
         "Packing Only",
         "Qty Missing",
-        "Ref Change",
-        "Replacement"
+        "Ref Change"
     ]
 
     values = [
@@ -71,8 +69,7 @@ def generate_pie_chart(df):
         (df["Remark"] == "❌ Missing item").sum(),
         (df["Remark"] == "📦 Packing only").sum(),
         (df["Remark"] == "⚠ Qty missing").sum(),
-        (df["Remark"] == "🔁 Reference change").sum(),
-        (df["Remark"] == "🔄 Replacement").sum()
+        (df["Remark"] == "🔁 Reference change").sum()
     ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
@@ -165,12 +162,8 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    # ==============================
-    # ADD SELECTION COLUMN
-    # ==============================
     result["Select"] = False
 
-    # INIT SESSION STATE ONCE ONLY (IMPORTANT FIX)
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
@@ -181,9 +174,6 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.success("Comparison completed ✅")
 
-    # ==============================
-    # DATA EDITOR (NO RESET FIX)
-    # ==============================
     edited_df = st.data_editor(
         st.session_state["result"],
         use_container_width=True,
@@ -191,11 +181,10 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         key="editor"
     )
 
-    # IMPORTANT: update only here (not before)
     st.session_state["result"] = edited_df.copy()
 
     # ==============================
-    # BUTTON REFERENCE CHANGE
+    # BUTTON REFERENCE CHANGE (ONLY 2 STATES)
     # ==============================
     if st.button("🔁 Reference Change"):
 
@@ -210,22 +199,16 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
                 if i < half:
                     edited_df.at[idx, "Remark"] = "🔁 Reference change"
                 else:
-                    edited_df.at[idx, "Remark"] = "🔄 Replacement"
+                    edited_df.at[idx, "Remark"] = "📦 Packing only"
 
             st.session_state["result"] = edited_df.copy()
             st.success("Reference Change applied ✅")
 
     result = st.session_state["result"]
 
-    # ==============================
-    # KPI
-    # ==============================
     show_kpis(result)
 
     st.markdown("---")
 
-    # ==============================
-    # PIE CHART
-    # ==============================
     fig = generate_pie_chart(result)
     st.pyplot(fig)
