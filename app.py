@@ -206,22 +206,8 @@ if run:
         "Remark"
     ]]
 
-    # ==============================
-    # CLEAN NUMBERS
-    # ==============================
-    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
+   
 
-    for c in num_cols:
-        result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
-
-    result["Comment"] = ""
-    result["Select"] = False
-
-    st.session_state["result"] = result
-
-# ==============================
-# DISPLAY
-# ==============================
 # ==========================
 # DISPLAY (ONE TABLE ONLY)
 # ==========================
@@ -260,75 +246,6 @@ if "result" in st.session_state:
 
     # ==========================
     # REFERENCE CHANGE
-    # ==========================
-    if st.button("🔁 Apply Reference Change"):
-
-        df = st.session_state["result"]
-        selected = df[df["Select"] == True]
-
-        if len(selected) != 2:
-            st.warning("⚠ Select exactly 2 rows")
-        else:
-            idx = selected.index.tolist()
-            remarks = selected["Remark"].tolist()
-
-            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
-
-                for i in idx:
-                    if df.loc[i, "Remark"] == "❌ Missing item":
-                        df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Comment"] = "Original BOM item"
-                    else:
-                        df.loc[i, "Remark"] = "🔄 Replacement"
-                        df.loc[i, "Comment"] = "Replaced by new reference"
-
-                    df.loc[i, "Select"] = False
-
-                st.session_state["result"] = df
-                st.success("🔁 Reference Change applied")
-
-            else:
-                st.error("❌ Need 1 Missing + 1 Packing only")
-
-    # ==========================
-    # PIE CHART
-    # ==========================
-    st.markdown("### 📊 KPI Distribution")
-    fig = generate_pie_chart(df)
-    st.pyplot(fig)
-
-    # ==========================
-    # DOWNLOAD
-    # ==========================
-    excel_file = export_excel(df)
-
-    st.download_button(
-        "📥 Download Excel Result",
-        data=excel_file.getvalue(),
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    # ==========================
-    # SELECT PANEL (HIDDEN CLEAN)
-    # ==========================
-    with st.expander("🔧 Selection Panel (Reference Change)", expanded=False):
-        edited_df = st.data_editor(
-            df,
-            use_container_width=True,
-            key="table"
-        )
-        st.session_state["result"] = edited_df
-
-    # ==========================
-    # ONLY COLORED TABLE (VISIBLE)
-    # ==========================
-    st.markdown("### 🎨 Result Table (Colored)")
-
-    styled = df.style.apply(highlight, axis=None)
-    st.dataframe(styled, use_container_width=True)
-
-    # ==========================
-    # REFERENCE CHANGE (UNCHANGED LOGIC)
     # ==========================
     if st.button("🔁 Apply Reference Change"):
 
