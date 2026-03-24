@@ -48,17 +48,11 @@ def show_kpis(df):
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
 
 # ==============================
-# PIE CHART + CLEAN LEGEND
+# PIE CHART
 # ==============================
 def generate_kpi_chart(df):
 
-    labels = [
-        "Conform",
-        "Missing",
-        "Packing Only",
-        "Qty Missing",
-        "Ref Change"
-    ]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -71,22 +65,17 @@ def generate_kpi_chart(df):
     colors = ["#2E7D32", "#C62828", "#1565C0", "#F9A825", "#6A1B9A"]
 
     fig, ax = plt.subplots(figsize=(5, 5))
-
-    # ❌ no labels in pie (important fix)
-    wedges, _ = ax.pie(
-        values,
-        colors=colors,
-        startangle=90
-    )
-
+    ax.pie(values, colors=colors, startangle=90)
     ax.set_title("KPI Distribution")
 
-    total = sum(values)
+    return fig, labels, values, colors
 
-    return fig, labels, values, colors, total
+# ==============================
+# EXCEL EXPORT
+# ==============================
 def export_excel(df):
 
-    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+    df_export = df.drop(columns=["Select"], errors="ignore")
 
     output = BytesIO()
 
@@ -126,6 +115,7 @@ def export_excel(df):
     wb.save(final)
     final.seek(0)
     return final
+
 # ==============================
 # MAIN PROCESS
 # ==============================
@@ -185,15 +175,9 @@ if run:
 
     result = df[[
         "PN", "Description", "bom_qty", "packing_qty",
-        "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
+        "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark", "_merge"
     ]]
 
-    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
-
-    for c in num_cols:
-        result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
-
-    result["Comment"] = ""
     result["Select"] = False
 
     st.session_state["result"] = result
@@ -209,14 +193,23 @@ if "result" in st.session_state:
 
     show_kpis(df)
 
+    # ==============================
+    # FIX SELECT (IMPORTANT)
+    # ==============================
     edited_df = st.data_editor(
         df,
         use_container_width=True,
         key="table",
-        column_config={"Select": st.column_config.CheckboxColumn("Select")}
+        column_config={
+            "Select": st.column_config.CheckboxColumn("Select", default=False),
+            "_merge": st.column_config.Column(disabled=True)
+        }
     )
 
-    st.session_state["result"] = edited_df
+    # IMPORTANT: only update Select (not full df overwrite)
+    df["Select"] = edited_df["Select"]
+
+    st.session_state["result"] = df
 
     # ==============================
     # REFERENCE CHANGE
@@ -238,9 +231,7 @@ if "result" in st.session_state:
                 for i in idx:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Comment"] = "Original BOM item"
-
-                    df.loc[i, "Select"] = False
+                        df.loc[i, "Select"] = False
 
                 st.session_state["result"] = df
                 st.success("🔁 Reference Change applied")
@@ -249,11 +240,11 @@ if "result" in st.session_state:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
     # ==============================
-    # KPI CHART + LEGEND (NEW DESIGN)
+    # KPI CHART
     # ==============================
     st.markdown("### 📊 KPI Distribution")
 
-    fig, labels, values, colors, total = generate_kpi_chart(df)
+    fig, labels, values, colors = generate_kpi_chart(df)
 
     col1, col2 = st.columns([2, 1])
 
@@ -261,11 +252,10 @@ if "result" in st.session_state:
         st.pyplot(fig)
 
     with col2:
-        st.markdown("### 🧾 Legend")
+        total = sum(values)
 
         for label, value, color in zip(labels, values, colors):
-
-            percent = (value / total * 100) if total > 0 else 0
+            percent = (value / total * 100) if total else 0
 
             st.markdown(
                 f"""
@@ -278,7 +268,7 @@ if "result" in st.session_state:
             )
 
     # ==============================
-    # EXPORT
+    # DOWNLOAD
     # ==============================
     excel_file = export_excel(df)
 
