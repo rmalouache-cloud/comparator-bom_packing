@@ -113,8 +113,11 @@ def export_excel(df):
 
     output = BytesIO()
 
+    # ❌ supprimer Select et Status avant export
+    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Result")
+        df_export.to_excel(writer, index=False, sheet_name="Result")
 
     output.seek(0)
     wb = load_workbook(output)
@@ -129,8 +132,15 @@ def export_excel(df):
         "🔄 Replacement": "B2EBF2"
     }
 
+    # ⚠ colonne Remark (dernière colonne maintenant)
+    remark_col_index = None
+    for i, cell in enumerate(ws[1], 1):
+        if cell.value == "Remark":
+            remark_col_index = i
+            break
+
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        remark = row[8].value
+        remark = row[remark_col_index - 1].value
         color = color_map.get(remark)
 
         if color:
