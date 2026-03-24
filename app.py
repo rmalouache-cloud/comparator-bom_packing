@@ -35,20 +35,7 @@ lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
-# ==============================
-# 🔁 REF CHANGE (FIXED BUTTON)
-# ==============================
-colA, colB = st.columns([1, 3])
 
-with colA:
-    if st.button("🔁 Ref Change"):
-        st.session_state["ref_change_mode"] = not st.session_state.get("ref_change_mode", False)
-
-with colB:
-    if st.session_state.get("ref_change_mode", False):
-        st.success("🔁 Mode changement de référence ACTIVÉ")
-    else:
-        st.info("Mode normal")
 # ==============================
 # KPI
 # ==============================
@@ -106,7 +93,20 @@ def highlight_remark_column(row):
         styles[-1] = "background-color: #0D47A1; color: white; font-weight: bold;"
 
     return styles
+# ==============================
+# 🔁 REF CHANGE (FIXED BUTTON)
+# ==============================
+colA, colB = st.columns([1, 3])
 
+with colA:
+    if st.button("🔁 Ref Change"):
+        st.session_state["ref_change_mode"] = not st.session_state.get("ref_change_mode", False)
+
+with colB:
+    if st.session_state.get("ref_change_mode", False):
+        st.success("🔁 Mode changement de référence ACTIVÉ")
+    else:
+        st.info("Mode normal")
 # ==============================
 # EXCEL EXPORT
 # ==============================
