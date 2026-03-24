@@ -46,16 +46,18 @@ def show_kpis(df):
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
+    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
     c1.metric("✅ Conform", conform)
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
     c5.metric("🔁 Ref Change", ref_change)
+    c6.metric("🔄 Replacement", replacement)
 
 # ==============================
 # PIE CHART
@@ -67,18 +69,14 @@ def generate_pie_chart(df):
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
+    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
-    values = [conform, missing, packing_only, qty_missing, ref_change]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
+    values = [conform, missing, packing_only, qty_missing, ref_change, replacement]
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    ax.pie(
-        values,
-        labels=labels,
-        autopct="%1.1f%%",
-        startangle=90
-    )
+    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
 
     ax.set_title("KPI Distribution (Articles)")
 
@@ -102,6 +100,8 @@ def highlight_remark_column(df):
             styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
         elif val == "🔁 Reference Change":
             styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
+        elif val == "🔄 Replacement":
+            styles.append("background-color: #00838F; color: white; font-weight: bold;")
         else:
             styles.append("")
 
@@ -128,7 +128,8 @@ def export_excel(df):
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
         "📦 Packing only": "BDD7EE",
-        "🔁 Reference Change": "D9D2E9"
+        "🔁 Reference Change": "D9D2E9",
+        "🔄 Replacement": "B2EBF2"
     }
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
@@ -145,7 +146,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION (ONLY ON CLICK)
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -228,10 +229,14 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
+    # ➕ AJOUT COLONNES SANS TOUCHER STRUCTURE
+    result["Comment"] = ""
+    result["Select"] = False
+
     st.session_state["result"] = result
 
 # ==============================
-# DISPLAY SECTION (PERSISTENT)
+# DISPLAY
 # ==============================
 if "result" in st.session_state:
 
@@ -239,29 +244,19 @@ if "result" in st.session_state:
 
     st.success("Comparison completed ✅")
 
-    # KPI
     show_kpis(result)
 
     st.markdown("---")
 
-    # ✅ TABLE EDITABLE (same table)
-    result["Select"] = False
-
-    edited_df = st.data_editor(
-        result,
-        use_container_width=True,
-        key="main_table"
-    )
+    # TABLE EDITABLE
+    edited_df = st.data_editor(result, use_container_width=True, key="table")
 
     st.session_state["result"] = edited_df
 
-    # ==============================
-    # MANUAL REFERENCE CHANGE
-    # ==============================
+    # 🔁 REFERENCE CHANGE LOGIC
     if st.button("🔁 Apply Reference Change"):
 
         df = st.session_state["result"]
-
         selected = df[df["Select"] == True]
 
         if len(selected) != 2:
@@ -272,24 +267,19 @@ if "result" in st.session_state:
 
             if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
 
-                row1, row2 = selected.iloc[0], selected.iloc[1]
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
 
-                new_row = row1.copy()
-
-                new_row["PN"] = str(row1["PN"]) + " → " + str(row2["PN"])
-                new_row["Description"] = "Reference Change"
-                new_row["Qty BOM"] = row1["Qty BOM"]
-                new_row["Packing list qty"] = row2["Packing list qty"]
-                new_row["Balance"] = row2["Packing list qty"] - row1["Qty (MP+SAV)"]
-                new_row["Remark"] = "🔁 Reference Change"
-                new_row["Select"] = False
-
-                df = df.drop(index=idx)
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                    df.loc[i, "Select"] = False
 
                 st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
 
-                st.success("✅ Reference Change applied")
             else:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
@@ -302,30 +292,7 @@ if "result" in st.session_state:
         fig = generate_pie_chart(st.session_state["result"])
         st.pyplot(fig)
 
-        img_buffer = BytesIO()
-        fig.savefig(img_buffer, format="png")
-        img_buffer.seek(0)
-
-        pdf_buffer = BytesIO()
-        doc = SimpleDocTemplate(pdf_buffer)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            tmp.write(img_buffer.getvalue())
-            tmp_path = tmp.name
-
-        elements = [RLImage(tmp_path, width=300, height=300)]
-        doc.build(elements)
-
-        pdf_buffer.seek(0)
-
-        st.download_button(
-            "📄 Download KPI Chart (PDF)",
-            data=pdf_buffer,
-            file_name="KPI_Chart.pdf",
-            mime="application/pdf"
-        )
-
-    # EXCEL DOWNLOAD (FIXED)
+    # EXCEL DOWNLOAD
     excel_file = export_excel(st.session_state["result"])
 
     st.download_button(
