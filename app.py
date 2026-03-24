@@ -60,7 +60,7 @@ def show_kpis(df):
     c6.metric("🔄 Replacement", replacement)
 
 # ==============================
-# PIE CHART
+# PIE CHART (FIXED)
 # ==============================
 def generate_pie_chart(df):
 
@@ -71,14 +71,55 @@ def generate_pie_chart(df):
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
     replacement = (df["Remark"] == "🔄 Replacement").sum()
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
     values = [conform, missing, packing_only, qty_missing, ref_change, replacement]
 
-    fig, ax = plt.subplots(figsize=(4, 4))
+    labels = [
+        "🟢 Conform",
+        "🔴 Missing",
+        "🔵 Packing Only",
+        "🟠 Qty Missing",
+        "🟣 Ref Change",
+        "🟦 Replacement"
+    ]
 
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+    colors = [
+        "#2E7D32",
+        "#C62828",
+        "#1565C0",
+        "#EF6C00",
+        "#6A1B9A",
+        "#00838F"
+    ]
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    wedges, texts, autotexts = ax.pie(
+        values,
+        colors=colors,
+        autopct="%1.1f%%",
+        startangle=90,
+        wedgeprops=dict(width=0.4)  # DONUT
+    )
+
+    # ❌ remove overlapping labels
+    for t in texts:
+        t.set_visible(False)
 
     ax.set_title("KPI Distribution (Articles)")
+
+    total = sum(values)
+
+    legend_labels = [
+        f"{labels[i]} : {values[i]} ({values[i]/total*100:.1f}%)"
+        for i in range(len(values)) if values[i] > 0
+    ]
+
+    ax.legend(
+        wedges,
+        legend_labels,
+        loc="center left",
+        bbox_to_anchor=(1, 0.5)
+    )
 
     return fig
 
@@ -146,7 +187,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION
+# MAIN
 # ==============================
 if run:
 
@@ -213,23 +254,24 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
-    result = df[[
-        "PN",
-        "Description_BOM",
-        "bom_qty",
-        "packing_qty",
-        "MP",
-        "SAV",
-        "Qty (MP+SAV)",
-        "Balance",
-        "Remark"
-    ]].rename(columns={
+    result = df[
+        [
+            "PN",
+            "Description_BOM",
+            "bom_qty",
+            "packing_qty",
+            "MP",
+            "SAV",
+            "Qty (MP+SAV)",
+            "Balance",
+            "Remark"
+        ]
+    ].rename(columns={
         "Description_BOM": "Description",
         "bom_qty": "Qty BOM",
         "packing_qty": "Packing list qty"
     })
 
-    # ➕ AJOUT COLONNES SANS TOUCHER STRUCTURE
     result["Comment"] = ""
     result["Select"] = False
 
@@ -248,52 +290,20 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # TABLE EDITABLE
-    edited_df = st.data_editor(result, use_container_width=True, key="table")
+    st.dataframe(
+        result.style.apply(highlight_remark_column, axis=None),
+        use_container_width=True
+    )
 
-    st.session_state["result"] = edited_df
-
-    # 🔁 REFERENCE CHANGE LOGIC
-    if st.button("🔁 Apply Reference Change"):
-
-        df = st.session_state["result"]
-        selected = df[df["Select"] == True]
-
-        if len(selected) != 2:
-            st.warning("⚠ Select exactly 2 rows")
-        else:
-            idx = selected.index.tolist()
-            remarks = selected["Remark"].tolist()
-
-            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
-
-                for i in idx:
-                    if df.loc[i, "Remark"] == "❌ Missing item":
-                        df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Comment"] = "Original BOM item"
-                    else:
-                        df.loc[i, "Remark"] = "🔄 Replacement"
-                        df.loc[i, "Comment"] = "Replaced by new reference"
-
-                    df.loc[i, "Select"] = False
-
-                st.session_state["result"] = df
-                st.success("🔁 Reference Change applied")
-
-            else:
-                st.error("❌ Need 1 Missing + 1 Packing only")
-
-    # PIE CHART
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        fig = generate_pie_chart(st.session_state["result"])
+        fig = generate_pie_chart(result)
         st.pyplot(fig)
 
-    # EXCEL DOWNLOAD
-    excel_file = export_excel(st.session_state["result"])
+    excel_file = export_excel(result)
 
     st.download_button(
         "📥 Download Excel Result",
