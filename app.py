@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
@@ -47,21 +46,19 @@ def show_kpis(df):
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
-    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("✅ Conform", conform)
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
     c5.metric("🔁 Ref Change", ref_change)
-    c6.metric("🔄 Replacement", replacement)
 
 # ==============================
-# PIE CHART
+# PIE CHART (NO TEXT INSIDE)
 # ==============================
 def generate_pie_chart(df):
 
@@ -70,21 +67,24 @@ def generate_pie_chart(df):
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
     ref_change = (df["Remark"] == "🔁 Reference Change").sum()
-    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
-    values = [conform, missing, packing_only, qty_missing, ref_change, replacement]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+    values = [conform, missing, packing_only, qty_missing, ref_change]
 
     fig, ax = plt.subplots(figsize=(4, 4))
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+
+    # ❌ pas de labels, pas de % dans le cercle
+    ax.pie(values, startangle=90)
+
     ax.set_title("KPI Distribution (Articles)")
 
     return fig, values
 
 # ==============================
-# TABLE STYLE (UI COLOR REMARK)
+# COLOR TABLE (REMARK ONLY)
 # ==============================
 def highlight_remark_column(df):
+
     styles = []
 
     for val in df["Remark"]:
@@ -98,8 +98,6 @@ def highlight_remark_column(df):
             styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
         elif val == "🔁 Reference Change":
             styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
-        elif val == "🔄 Replacement":
-            styles.append("background-color: #00838F; color: white; font-weight: bold;")
         else:
             styles.append("")
 
@@ -108,7 +106,7 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT
+# EXCEL EXPORT (UPDATED)
 # ==============================
 def export_excel(df):
 
@@ -126,8 +124,7 @@ def export_excel(df):
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
         "📦 Packing only": "BDD7EE",
-        "🔁 Reference Change": "D9D2E9",
-        "🔄 Replacement": "B2EBF2"
+        "🔁 Reference Change": "D9D2E9"
     }
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
@@ -227,9 +224,6 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    result["Comment"] = ""
-    result["Select"] = False
-
     st.session_state["result"] = result
 
 # ==============================
@@ -245,66 +239,25 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # ==========================
-    # TABLE (DATA EDITOR)
-    # ==========================
-    edited_df = st.data_editor(result, use_container_width=True, key="table")
-    st.session_state["result"] = edited_df
-
-    # ==========================
-    # COLORIZED VIEW (AJOUT)
-    # ==========================
-    st.markdown("### 🎨 Colored Table View")
-    styled = edited_df.style.apply(highlight_remark_column, axis=None)
+    # 📋 SINGLE COLORED TABLE ONLY
+    styled = result.style.apply(highlight_remark_column, axis=None)
     st.dataframe(styled, use_container_width=True)
 
-    # ==========================
-    # REFERENCE CHANGE
-    # ==========================
-    if st.button("🔁 Apply Reference Change"):
-
-        df = st.session_state["result"]
-        selected = df[df["Select"] == True]
-
-        if len(selected) != 2:
-            st.warning("⚠ Select exactly 2 rows")
-        else:
-            idx = selected.index.tolist()
-            remarks = selected["Remark"].tolist()
-
-            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
-
-                for i in idx:
-                    if df.loc[i, "Remark"] == "❌ Missing item":
-                        df.loc[i, "Remark"] = "🔁 Reference Change"
-                        df.loc[i, "Comment"] = "Original BOM item"
-                    else:
-                        df.loc[i, "Remark"] = "🔄 Replacement"
-                        df.loc[i, "Comment"] = "Replaced by new reference"
-
-                    df.loc[i, "Select"] = False
-
-                st.session_state["result"] = df
-                st.success("🔁 Reference Change applied")
-
-            else:
-                st.error("❌ Need 1 Missing + 1 Packing only")
-
-    # ==========================
-    # PIE + LEGEND (AJOUT)
-    # ==========================
+    # ==============================
+    # PIE + LEGEND
+    # ==============================
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        fig, values = generate_pie_chart(st.session_state["result"])
+        fig, values = generate_pie_chart(result)
         st.pyplot(fig)
 
     with col2:
 
-        labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
-        colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A", "#00838F"]
+        labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
+        colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A"]
 
         total = sum(values)
 
@@ -313,20 +266,17 @@ if "result" in st.session_state:
         for label, val, color in zip(labels, values, colors):
             percent = (val / total * 100) if total else 0
 
-            st.markdown(
-                f"""
+            st.markdown(f"""
                 <div style="display:flex; align-items:center; margin-bottom:6px;">
-                    <div style="width:15px;height:15px;background:{color};margin-right:8px;"></div>
+                    <div style="width:14px;height:14px;background:{color};margin-right:8px;"></div>
                     <b>{label}</b> : {val} ({percent:.1f}%)
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+            """, unsafe_allow_html=True)
 
-    # ==========================
-    # EXCEL DOWNLOAD
-    # ==========================
-    excel_file = export_excel(st.session_state["result"])
+    # ==============================
+    # DOWNLOAD EXCEL
+    # ==============================
+    excel_file = export_excel(result)
 
     st.download_button(
         "📥 Download Excel Result",
