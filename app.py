@@ -39,14 +39,13 @@ run = st.button("🚀 Compare")
 def show_kpis(df):
     st.markdown(f"### 📊 Total Articles: {len(df)}")
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
     c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
     c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
     c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
-    c6.metric("🔄 Replacement", (df["Remark"] == "🔄 Replacement").sum())
 
 # ==============================
 # PIE CHART
@@ -85,7 +84,6 @@ def export_excel(df):
         "📦 Packing only": "BDD7EE",
         "⚠ Qty missing": "FFEB9C",
         "🔁 Reference Change": "D9D2E9",
-        "🔄 Replacement": "B2EBF2",
     }
 
     remark_col = None
@@ -169,18 +167,6 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
-    # ==============================
-    # 🔥 REFERENCE CHANGE LOGIC (IMPORTANT)
-    # ==============================
-    # On fusionne logique métier
-    df["Balance"] = df.apply(
-        lambda x: 0 if x["Remark"] in ["🔁 Reference Change", "🔄 Replacement"] else x["Balance"],
-        axis=1
-    )
-
-    # ==============================
-    # RESULT TABLE
-    # ==============================
     result = df[[
         "PN", "Description", "bom_qty", "packing_qty",
         "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
@@ -197,7 +183,7 @@ if run:
     st.session_state["result"] = result
 
 # ==============================
-# DISPLAY (ONE TABLE ONLY)
+# DISPLAY
 # ==============================
 if "result" in st.session_state:
 
@@ -219,7 +205,7 @@ if "result" in st.session_state:
     st.session_state["result"] = edited_df
 
     # ==============================
-    # REFERENCE CHANGE ACTION
+    # REFERENCE CHANGE ONLY
     # ==============================
     if st.button("🔁 Apply Reference Change"):
 
@@ -239,18 +225,11 @@ if "result" in st.session_state:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
                         df.loc[i, "Comment"] = "Original BOM item"
-                    else:
-                        df.loc[i, "Remark"] = "🔄 Replacement"
-                        df.loc[i, "Comment"] = "Replaced by new reference"
 
                     df.loc[i, "Select"] = False
 
-                # 🔥 recalcul KPI logique (important)
-                df.loc[df["Remark"] == "🔁 Reference Change", "Balance"] = 0
-                df.loc[df["Remark"] == "🔄 Replacement", "Balance"] = 0
-
                 st.session_state["result"] = df
-                st.success("🔁 Reference Change applied with recalculation")
+                st.success("🔁 Reference Change applied")
 
             else:
                 st.error("❌ Need 1 Missing + 1 Packing only")
