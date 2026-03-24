@@ -85,11 +85,11 @@ def generate_pie_chart(df):
 
     # 🔥 légende avec % inclus
     legend_labels = [
-        f"🟢 Conform ({values[0]} - {values[0]/total*100:.1f}%)",
-        f"🔴 Missing ({values[1]} - {values[1]/total*100:.1f}%)",
-        f"🟠 Packing Only ({values[2]} - {values[2]/total*100:.1f}%)",
-        f"🔵 Qty Missing ({values[3]} - {values[3]/total*100:.1f}%)",
-        f"🟣 Ref Change ({values[4]} - {values[4]/total*100:.1f}%)"
+        f"🟢 Conform ( {values[0]/total*100:.1f}%)",
+        f"🔴 Missing ({values[1]/total*100:.1f}%)",
+        f"🟠 Packing Only ( {values[2]/total*100:.1f}%)",
+        f"🔵 Qty Missing ( {values[3]/total*100:.1f}%)",
+        f"🟣 Ref Change ( {values[4]/total*100:.1f}%)"
     ]
 
     fig, ax = plt.subplots(figsize=(4, 4))
