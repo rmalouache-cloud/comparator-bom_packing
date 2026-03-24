@@ -54,7 +54,8 @@ def show_kpis(df):
 # ==============================
 # PIE CHART
 # ==============================
-def generate_pie_chart(df):
+
+       def generate_pie_chart(df):
 
     labels = [
         "Conform",
@@ -72,9 +73,47 @@ def generate_pie_chart(df):
         (df["Remark"] == "🔁 Reference change").sum()
     ]
 
-    fig, ax = plt.subplots(figsize=(4, 4))
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-    ax.set_title("KPI Distribution")
+    # couleurs propres (dashboard style)
+    colors = [
+        "#2ecc71",  # vert
+        "#e74c3c",  # rouge
+        "#f39c12",  # orange
+        "#3498db",  # bleu
+        "#9b59b6"   # violet
+    ]
+
+    fig, ax = plt.subplots(figsize=(3.8, 3.8))  # 🔥 plus petit cercle
+
+    wedges, texts, autotexts = ax.pie(
+        values,
+        colors=colors,
+        startangle=90,
+        autopct="%1.1f%%",
+        pctdistance=0.75,   # 🔥 texte % vers centre
+        labeldistance=1.05  # labels à l’extérieur
+    )
+
+    # 🔥 amélioration lisibilité texte
+    for text in texts:
+        text.set_fontsize(9)
+
+    for autotext in autotexts:
+        autotext.set_fontsize(9)
+        autotext.set_color("white")
+        autotext.set_weight("bold")
+
+    ax.set_title("KPI Distribution", fontsize=11)
+
+    # 🔥 légende propre à droite (évite superposition)
+    ax.legend(
+        wedges,
+        labels,
+        loc="center left",
+        bbox_to_anchor=(1, 0.5),
+        fontsize=9
+    )
+
+    plt.tight_layout()
 
     return fig
 
