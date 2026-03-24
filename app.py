@@ -82,7 +82,7 @@ def show_kpis(df):
         "#9b59b6"   # violet
     ]
 
-    fig, ax = plt.subplots(figsize=(3.8, 3.8))  # 🔥 plus petit cercle
+    fig, ax = plt.subplots(figsize=(3, 3)  # 🔥 plus petit cercle
 
     wedges, texts, autotexts = ax.pie(
         values,
