@@ -1,12 +1,7 @@
 import streamlit as st
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
-from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
-from reportlab.platypus import SimpleDocTemplate, Image as RLImage
-import tempfile
 
 # ==============================
 # CONFIG
@@ -41,52 +36,15 @@ run = st.button("🚀 Compare")
 def show_kpis(df):
 
     total = len(df)
+    st.markdown(f"### 📊 Total Articles: {total}")
 
-    st.markdown(
-        f"""
-        <div style="
-            background-color:#0f172a;
-            padding:12px;
-            border-radius:10px;
-            color:white;
-            font-size:16px;
-            margin-bottom:10px;
-        ">
-            <b>📊 Total Articles: {total}</b>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-    kpis = {
-        "✅ Conform": (df["Remark"] == "✅ Conform").sum(),
-        "❌ Missing": (df["Remark"] == "❌ Missing item").sum(),
-        "📦 Packing only": (df["Remark"] == "📦 Packing only").sum(),
-        "⚠ Qty missing": (df["Remark"] == "⚠ Qty missing").sum(),
-        "🔁 Ref Change": (df["Remark"] == "🔁 Reference change").sum(),
-    }
-
-    colors = ["#2ecc71", "#e74c3c", "#f39c12", "#3498db", "#9b59b6"]
-
-    cols = st.columns(len(kpis))
-
-    for i, (label, value) in enumerate(kpis.items()):
-        cols[i].markdown(
-            f"""
-            <div style="
-                background-color:{colors[i]};
-                padding:10px;
-                border-radius:10px;
-                text-align:center;
-                color:white;
-                font-weight:bold;
-            ">
-                {label}<br>
-                <span style="font-size:20px">{value}</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
+    c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
+    c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
+    c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
+    c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference change").sum())
 
 # ==============================
 # PIE CHART
@@ -101,44 +59,18 @@ def generate_pie_chart(df):
         (df["Remark"] == "🔁 Reference change").sum()
     ]
 
-    colors = [
-        "#2ecc71",
-        "#e74c3c",
-        "#f39c12",
-        "#3498db",
-        "#9b59b6"
-    ]
-
-    total = sum(values)
-
-    legend_labels = [
-        f"🟢 Conform ({values[0]/total*100:.1f}%)",
-        f"🔴 Missing ({values[1]/total*100:.1f}%)",
-        f"🟠 Packing Only ({values[2]/total*100:.1f}%)",
-        f"🔵 Qty Missing ({values[3]/total*100:.1f}%)",
-        f"🟣 Ref Change ({values[4]/total*100:.1f}%)"
-    ]
+    colors = ["#2ecc71", "#e74c3c", "#f39c12", "#3498db", "#9b59b6"]
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    wedges, _ = ax.pie(values, colors=colors, startangle=90)
+    ax.pie(values, colors=colors, startangle=90)
 
     ax.set_title("KPI Distribution", fontsize=11)
-
-    ax.legend(
-        wedges,
-        legend_labels,
-        loc="center left",
-        bbox_to_anchor=(1, 0.5),
-        fontsize=9
-    )
-
-    plt.tight_layout()
 
     return fig
 
 # ==============================
-# MAIN
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -191,7 +123,6 @@ if run:
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
     df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
-    df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
     def detect_remark(row):
         if row["_merge"] == "left_only":
@@ -213,7 +144,6 @@ if run:
         "MP",
         "SAV",
         "Qty (MP+SAV)",
-        "Balance",
         "Remark"
     ]].rename(columns={
         "Description_BOM": "Description",
@@ -233,18 +163,11 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.success("Comparison completed ✅")
 
-    result = st.session_state["result"]
+    # ==============================
+    # STABLE DATAFRAME (IMPORTANT FIX)
+    # ==============================
+    base_df = st.session_state["result"]
 
-    # ==============================
-    # KPI (TOP)
-    # ==============================
-    show_kpis(result)
-
-    st.markdown("---")
-
-    # ==============================
-    # TABLE (ONLY SELECT EDITABLE)
-    # ==============================
     columns_config = {
         "PN": st.column_config.TextColumn(disabled=True),
         "Description": st.column_config.TextColumn(disabled=True),
@@ -253,34 +176,43 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         "MP": st.column_config.NumberColumn(disabled=True),
         "SAV": st.column_config.NumberColumn(disabled=True),
         "Qty (MP+SAV)": st.column_config.NumberColumn(disabled=True),
-        "Balance": st.column_config.NumberColumn(disabled=True),
         "Remark": st.column_config.TextColumn(disabled=True),
         "Select": st.column_config.CheckboxColumn("Select")
     }
 
     edited_df = st.data_editor(
-        result,
+        base_df,
         use_container_width=True,
         num_rows="fixed",
         key="editor",
         column_config=columns_config
     )
 
-    st.session_state["result"] = edited_df.copy()
+    # ONLY UPDATE CHECKBOX (NO RESET)
+    base_df["Select"] = edited_df["Select"]
+
+    st.session_state["result"] = base_df
+
+    # ==============================
+    # KPI (TOP)
+    # ==============================
+    show_kpis(base_df)
+
+    st.markdown("---")
 
     # ==============================
     # BUTTON
     # ==============================
     if st.button("🔁 Reference Change"):
 
-        selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
+        selected_idx = base_df[base_df["Select"] == True].index.tolist()
 
         if len(selected_idx) < 2:
             st.warning("Select at least 2 articles")
 
         else:
             half = len(selected_idx) // 2
-            updated_df = edited_df.copy()
+            updated_df = base_df.copy()
 
             for i, idx in enumerate(selected_idx):
                 if i < half:
@@ -296,5 +228,5 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     # ==============================
     st.markdown("---")
 
-    fig = generate_pie_chart(result)
+    fig = generate_pie_chart(base_df)
     st.pyplot(fig)
