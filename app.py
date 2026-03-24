@@ -46,6 +46,28 @@ def show_kpis(df):
     c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
     c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
     c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
+# ==============================
+# TABLE STYLE
+# ==============================
+def highlight_remark_column(df):
+
+    styles = []
+
+    for val in df["Remark"]:
+        if val == "✅ Conform":
+            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
+        elif val == "⚠ Qty missing":
+            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
+        elif val == "❌ Missing item":
+            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
+        elif val == "📦 Packing only":
+            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
+        else:
+            styles.append("")
+
+    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
+    style_df["Remark"] = styles
+    return style_df
 
 # ==============================
 # PIE CHART + CLEAN LEGEND
