@@ -20,7 +20,7 @@ try:
 except:
     st.title("BOM Comparator")
 
-st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
+st.markdown("## 📊 BOM vs Packing Comparison Tool ⚖️")
 
 # ==============================
 # INPUTS
@@ -76,7 +76,7 @@ def generate_pie_chart(df):
     return fig, values
 
 # ==============================
-# COLOR STYLE (TABLE UI)
+# TABLE STYLE (UI COLOR ONLY)
 # ==============================
 def highlight_remark_column(df):
     styles = []
@@ -100,13 +100,14 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXPORT EXCEL (NO SELECT + NO STATUS)
+# EXCEL EXPORT (COLOR FIXED)
 # ==============================
 def export_excel(df):
 
     output = BytesIO()
 
-    export_df = df.drop(columns=["Select", "Remark"], errors="ignore")
+    # remove only Select
+    export_df = df.drop(columns=["Select"], errors="ignore")
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         export_df.to_excel(writer, index=False, sheet_name="Result")
@@ -115,10 +116,25 @@ def export_excel(df):
     wb = load_workbook(output)
     ws = wb.active
 
-    # no status column -> no coloring needed
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    headers = [cell.value for cell in ws[1]]
+    remark_idx = headers.index("Remark") + 1 if "Remark" in headers else None
+
+    color_map = {
+        "✅ Conform": "C6EFCE",
+        "⚠ Qty missing": "FFEB9C",
+        "❌ Missing item": "FFC7CE",
+        "📦 Packing only": "BDD7EE",
+        "🔁 Reference Change": "D9D2E9"
+    }
+
+    if remark_idx:
+        for row in ws.iter_rows(min_row=2):
+            remark = row[remark_idx - 1].value
+            color = color_map.get(remark)
+
+            if color:
+                for cell in row:
+                    cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
 
     final = BytesIO()
     wb.save(final)
@@ -203,6 +219,9 @@ if run:
 
     result["Select"] = False
 
+    # 🔥 IMPORTANT: keep Remark in memory but NOT in UI
+    result["Remark"] = df["Remark"]
+
     st.session_state["result"] = result
 
 # ==============================
@@ -218,8 +237,8 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # 📊 TABLE (NO STATUS COLUMN DISPLAYED)
-    display_df = result.drop(columns=[], errors="ignore")
+    # 📊 TABLE WITHOUT STATUS COLUMN
+    display_df = result.drop(columns=["Remark"], errors="ignore")
 
     styled = display_df.style.apply(highlight_remark_column, axis=None)
 
@@ -228,7 +247,7 @@ if "result" in st.session_state:
     st.session_state["result"] = result
 
     # ==============================
-    # REFERENCE CHANGE BUTTON
+    # REFERENCE CHANGE
     # ==============================
     if st.button("🔁 Apply Reference Change"):
 
@@ -246,10 +265,6 @@ if "result" in st.session_state:
                 for i in idx:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
-                    else:
-                        df.loc[i, "Remark"] = "🔄 Replacement"
-
-                    df.loc[i, "Select"] = False
 
                 st.session_state["result"] = df
                 st.success("🔁 Reference Change applied")
@@ -285,7 +300,7 @@ if "result" in st.session_state:
             )
 
     # ==============================
-    # DOWNLOAD
+    # DOWNLOAD EXCEL
     # ==============================
     excel_file = export_excel(result)
 
