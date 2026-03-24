@@ -38,23 +38,29 @@ run = st.button("🚀 Compare")
 # ==============================
 def show_kpis(df):
     st.markdown(f"### 📊 Total Articles: {len(df)}")
-    c1, c2, c3, c4 = st.columns(4)
+
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+
     c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
     c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
     c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
     c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
+    c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference Change").sum())
+    c6.metric("🔄 Replacement", (df["Remark"] == "🔄 Replacement").sum())
 
 # ==============================
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing"]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
     values = [
         (df["Remark"] == "✅ Conform").sum(),
         (df["Remark"] == "❌ Missing item").sum(),
         (df["Remark"] == "📦 Packing only").sum(),
         (df["Remark"] == "⚠ Qty missing").sum(),
+        (df["Remark"] == "🔁 Reference Change").sum(),
     ]
+
     fig, ax = plt.subplots()
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     return fig
@@ -64,12 +70,15 @@ def generate_pie_chart(df):
 # ==============================
 def export_excel(df):
     df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df_export.to_excel(writer, index=False, sheet_name="Result")
+
     output.seek(0)
     wb = load_workbook(output)
     ws = wb.active
+
     color_map = {
         "✅ Conform": "C6EFCE",
         "❌ Missing item": "FFC7CE",
@@ -78,16 +87,20 @@ def export_excel(df):
         "🔁 Reference Change": "D9D2E9",
         "🔄 Replacement": "B2EBF2",
     }
+
     remark_col = None
     for i, cell in enumerate(ws[1], 1):
         if cell.value == "Remark":
             remark_col = i
+
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
         remark = row[remark_col - 1].value
         color = color_map.get(remark)
+
         if color:
             for cell in row:
                 cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+
     final = BytesIO()
     wb.save(final)
     final.seek(0)
@@ -97,37 +110,53 @@ def export_excel(df):
 # MAIN PROCESS
 # ==============================
 if run:
+
     if not bom_file or not packing_file:
         st.error("Upload both files")
         st.stop()
+
     if not model_input:
         st.error("Enter model")
         st.stop()
+
     if not lot_input.isdigit():
         st.error("Lot must be numeric")
         st.stop()
 
     lot = int(lot_input)
+
     bom = pd.read_excel(bom_file)
     packing = pd.read_excel(packing_file)
+
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
+
     packing["Model"] = packing["Model"].astype(str).str.strip()
     packing_model = packing[packing["Model"] == model_input]
+
     if packing_model.empty:
         st.error("Model not found")
         st.stop()
 
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
     packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
+
     df = pd.merge(bom_g, packing_g, on=["PN", "Description"], how="outer", indicator=True)
+
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
+
+    # ==============================
+    # CALCULS
+    # ==============================
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
     df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
     df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
+    # ==============================
+    # REMARK LOGIC
+    # ==============================
     def detect_remark(row):
         if row["_merge"] == "left_only":
             return "❌ Missing item"
@@ -140,24 +169,42 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
+    # ==============================
+    # 🔥 REFERENCE CHANGE LOGIC (IMPORTANT)
+    # ==============================
+    # On fusionne logique métier
+    df["Balance"] = df.apply(
+        lambda x: 0 if x["Remark"] in ["🔁 Reference Change", "🔄 Replacement"] else x["Balance"],
+        axis=1
+    )
+
+    # ==============================
+    # RESULT TABLE
+    # ==============================
     result = df[[
-        "PN", "Description", "bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
+        "PN", "Description", "bom_qty", "packing_qty",
+        "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
     ]]
-    # Arrondir les nombres
+
+    # clean numbers
     num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
     for c in num_cols:
         result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
 
     result["Comment"] = ""
     result["Select"] = False
+
     st.session_state["result"] = result
 
 # ==============================
-# DISPLAY SINGLE EDITABLE TABLE
+# DISPLAY (ONE TABLE ONLY)
 # ==============================
 if "result" in st.session_state:
+
     df = st.session_state["result"]
+
     st.success("Comparison completed ✅")
+
     show_kpis(df)
 
     edited_df = st.data_editor(
@@ -168,20 +215,26 @@ if "result" in st.session_state:
             "Select": st.column_config.CheckboxColumn("Select")
         }
     )
+
     st.session_state["result"] = edited_df
 
-    # ==========================
-    # REFERENCE CHANGE LOGIC
-    # ==========================
+    # ==============================
+    # REFERENCE CHANGE ACTION
+    # ==============================
     if st.button("🔁 Apply Reference Change"):
+
         df = st.session_state["result"]
         selected = df[df["Select"] == True]
+
         if len(selected) != 2:
             st.warning("⚠ Select exactly 2 rows")
+
         else:
             idx = selected.index.tolist()
             remarks = selected["Remark"].tolist()
+
             if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
                 for i in idx:
                     if df.loc[i, "Remark"] == "❌ Missing item":
                         df.loc[i, "Remark"] = "🔁 Reference Change"
@@ -189,23 +242,31 @@ if "result" in st.session_state:
                     else:
                         df.loc[i, "Remark"] = "🔄 Replacement"
                         df.loc[i, "Comment"] = "Replaced by new reference"
+
                     df.loc[i, "Select"] = False
+
+                # 🔥 recalcul KPI logique (important)
+                df.loc[df["Remark"] == "🔁 Reference Change", "Balance"] = 0
+                df.loc[df["Remark"] == "🔄 Replacement", "Balance"] = 0
+
                 st.session_state["result"] = df
-                st.success("🔁 Reference Change applied")
+                st.success("🔁 Reference Change applied with recalculation")
+
             else:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
-    # ==========================
+    # ==============================
     # PIE CHART
-    # ==========================
+    # ==============================
     st.markdown("### 📊 KPI Distribution")
     fig = generate_pie_chart(df)
     st.pyplot(fig)
 
-    # ==========================
-    # EXCEL DOWNLOAD
-    # ==========================
+    # ==============================
+    # EXPORT
+    # ==============================
     excel_file = export_excel(df)
+
     st.download_button(
         "📥 Download Excel Result",
         data=excel_file.getvalue(),
