@@ -41,7 +41,6 @@ run = st.button("🚀 Compare")
 def show_kpis(df):
 
     total = len(df)
-
     st.markdown(f"### 📊 Total Articles: {total}")
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
@@ -171,36 +170,29 @@ if run:
     # ==============================
     result["Select"] = False
 
+    # INIT SESSION STATE ONCE ONLY (IMPORTANT FIX)
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY (ONE TABLE ONLY)
+# DISPLAY
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
-
-    result = st.session_state["result"]
 
     st.success("Comparison completed ✅")
 
     # ==============================
-    # EDITABLE TABLE
+    # DATA EDITOR (NO RESET FIX)
     # ==============================
     edited_df = st.data_editor(
-        result,
+        st.session_state["result"],
         use_container_width=True,
         num_rows="fixed",
         key="editor"
     )
 
-    # sécurité colonne Select
-    if "Select" not in edited_df.columns:
-        edited_df = result.copy()
-        edited_df["Select"] = False
-
-    edited_df["Select"] = edited_df["Select"].fillna(False).astype(bool)
-
-    st.session_state["result"] = edited_df
+    # IMPORTANT: update only here (not before)
+    st.session_state["result"] = edited_df.copy()
 
     # ==============================
     # BUTTON REFERENCE CHANGE
@@ -220,7 +212,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
                 else:
                     edited_df.at[idx, "Remark"] = "🔄 Replacement"
 
-            st.session_state["result"] = edited_df
+            st.session_state["result"] = edited_df.copy()
             st.success("Reference Change applied ✅")
 
     result = st.session_state["result"]
