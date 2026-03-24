@@ -46,11 +46,11 @@ def show_kpis(df):
         f"""
         <div style="
             background-color:#0f172a;
-            padding:15px;
+            padding:12px;
             border-radius:10px;
             color:white;
-            margin-bottom:10px;
             font-size:16px;
+            margin-bottom:10px;
         ">
             <b>📊 Total Articles: {total}</b>
         </div>
@@ -66,16 +66,16 @@ def show_kpis(df):
         "🔁 Ref Change": (df["Remark"] == "🔁 Reference change").sum(),
     }
 
-    cols = st.columns(len(kpis))
-
     colors = ["#2ecc71", "#e74c3c", "#f39c12", "#3498db", "#9b59b6"]
+
+    cols = st.columns(len(kpis))
 
     for i, (label, value) in enumerate(kpis.items()):
         cols[i].markdown(
             f"""
             <div style="
                 background-color:{colors[i]};
-                padding:12px;
+                padding:10px;
                 border-radius:10px;
                 text-align:center;
                 color:white;
@@ -92,14 +92,6 @@ def show_kpis(df):
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
-
-    labels = [
-        "Conform",
-        "Missing",
-        "Packing Only",
-        "Qty Missing",
-        "Ref Change"
-    ]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -129,11 +121,7 @@ def generate_pie_chart(df):
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    wedges, _ = ax.pie(
-        values,
-        colors=colors,
-        startangle=90
-    )
+    wedges, _ = ax.pie(values, colors=colors, startangle=90)
 
     ax.set_title("KPI Distribution", fontsize=11)
 
@@ -245,8 +233,17 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.success("Comparison completed ✅")
 
+    result = st.session_state["result"]
+
     # ==============================
-    # ONLY SELECT IS EDITABLE
+    # KPI (TOP)
+    # ==============================
+    show_kpis(result)
+
+    st.markdown("---")
+
+    # ==============================
+    # TABLE (ONLY SELECT EDITABLE)
     # ==============================
     columns_config = {
         "PN": st.column_config.TextColumn(disabled=True),
@@ -262,7 +259,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     }
 
     edited_df = st.data_editor(
-        st.session_state["result"],
+        result,
         use_container_width=True,
         num_rows="fixed",
         key="editor",
@@ -272,7 +269,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.session_state["result"] = edited_df.copy()
 
     # ==============================
-    # REFERENCE CHANGE
+    # BUTTON
     # ==============================
     if st.button("🔁 Reference Change"):
 
@@ -283,22 +280,20 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
         else:
             half = len(selected_idx) // 2
-
             updated_df = edited_df.copy()
 
             for i, idx in enumerate(selected_idx):
                 if i < half:
                     updated_df.at[idx, "Remark"] = "🔁 Reference change"
                 else:
-                    updated_df.at[idx, "Remark"] = "🔁 Replacement"
+                    updated_df.at[idx, "Remark"] = "📦 Replacement"
 
             st.session_state["result"] = updated_df
             st.rerun()
 
-    result = st.session_state["result"]
-
-    show_kpis(result)
-
+    # ==============================
+    # PIE CHART
+    # ==============================
     st.markdown("---")
 
     fig = generate_pie_chart(result)
