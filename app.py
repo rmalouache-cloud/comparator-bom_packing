@@ -74,46 +74,37 @@ def generate_pie_chart(df):
     ]
 
     colors = [
-        "#2ecc71",
-        "#e74c3c",
-        "#f39c12",
-        "#3498db",
-        "#9b59b6"
+        "#2ecc71",  # green
+        "#e74c3c",  # red
+        "#f39c12",  # orange
+        "#3498db",  # blue
+        "#9b59b6"   # purple
     ]
 
-    fig, ax = plt.subplots(figsize=(3.8, 3.8))
+    fig, ax = plt.subplots(figsize=(4, 4))
 
-    wedges, texts, autotexts = ax.pie(
+    wedges, _, autotexts = ax.pie(
         values,
+        labels=None,              # ❌ pas de texte autour
         colors=colors,
         startangle=90,
-        autopct="%1.1f%%",
-        pctdistance=0.75,
-        labeldistance=1.05
+        autopct="%1.1f%%",       # ✔ pourcentage dans le cercle
+        pctdistance=0.7          # ✔ % bien centré
     )
 
-    for text in texts:
-        text.set_fontsize(9)
-
+    # 🔥 style des %
     for autotext in autotexts:
-        autotext.set_fontsize(9)
-        autotext.set_color("white")
+        autotext.set_fontsize(10)
         autotext.set_weight("bold")
+        autotext.set_color("black")  # pas blanc
 
     ax.set_title("KPI Distribution", fontsize=11)
 
-    ax.legend(
-        wedges,
-        labels,
-        loc="center left",
-        bbox_to_anchor=(1, 0.5),
-        fontsize=9
-    )
+    # ❌ pas de legend (cercle seul comme demandé)
 
     plt.tight_layout()
 
     return fig
-   
  
 
 # ==============================
