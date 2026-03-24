@@ -84,7 +84,48 @@ def generate_kpi_chart(df):
     total = sum(values)
 
     return fig, labels, values, colors, total
+def export_excel(df):
 
+    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_export.to_excel(writer, index=False, sheet_name="Result")
+
+    output.seek(0)
+    wb = load_workbook(output)
+    ws = wb.active
+
+    color_map = {
+        "✅ Conform": "C6EFCE",
+        "❌ Missing item": "FFC7CE",
+        "📦 Packing only": "BDD7EE",
+        "⚠ Qty missing": "FFEB9C",
+        "🔁 Reference Change": "D9D2E9",
+    }
+
+    remark_col = None
+    for i, cell in enumerate(ws[1], 1):
+        if cell.value == "Remark":
+            remark_col = i
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        remark = row[remark_col - 1].value
+        color = color_map.get(remark)
+
+        if color:
+            for cell in row:
+                cell.fill = PatternFill(
+                    start_color=color,
+                    end_color=color,
+                    fill_type="solid"
+                )
+
+    final = BytesIO()
+    wb.save(final)
+    final.seek(0)
+    return final
 # ==============================
 # MAIN PROCESS
 # ==============================
