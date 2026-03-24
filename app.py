@@ -1,28 +1,15 @@
 import streamlit as st
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
 from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
-from reportlab.platypus import SimpleDocTemplate, Image as RLImage
-import tempfile
 
 # ==============================
 # CONFIG
 # ==============================
 st.set_page_config(page_title="BOM Comparator", layout="wide")
 
-# ==============================
-# LOGO
-# ==============================
-try:
-    logo = Image.open("logo.jfif")
-    st.image(logo, width=1500)
-except:
-    st.title("BOM Comparator")
-
-st.markdown("## 📊 BOM vs Packing Comparison Tool ⚖️")
+st.title("📊 BOM vs Packing Comparator")
 
 # ==============================
 # INPUTS
@@ -36,59 +23,46 @@ lot_input = st.text_input("🔢 Enter Lot Quantity")
 run = st.button("🚀 Compare")
 
 # ==============================
-# KPI
+# KPI FUNCTION
 # ==============================
 def show_kpis(df):
 
-    total = len(df)
+    st.markdown("### 📊 KPI Summary")
 
-    st.markdown(f"### 📊 Total Articles: {total}")
+    c1, c2, c3, c4 = st.columns(4)
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-
-    c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
-    c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
-    c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
-    c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
-    c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference change").sum())
-    c6.metric("🔄 Replacement", (df["Remark"] == "🔄 Replacement").sum())
+    c1.metric("✅ Conform", (df["Remark"] == "Conform").sum())
+    c2.metric("❌ Missing", (df["Remark"] == "Missing item").sum())
+    c3.metric("📦 Packing only", (df["Remark"] == "Packing only").sum())
+    c4.metric("🔁 Ref Change", (df["Remark"] == "Reference change").sum())
 
 # ==============================
 # PIE CHART
 # ==============================
-def generate_pie_chart(df):
+def generate_pie(df):
 
-    labels = [
-        "Conform",
-        "Missing",
-        "Packing Only",
-        "Qty Missing",
-        "Ref Change",
-        "Replacement"
-    ]
+    labels = ["Conform", "Missing", "Packing only", "Reference change"]
 
     values = [
-        (df["Remark"] == "✅ Conform").sum(),
-        (df["Remark"] == "❌ Missing item").sum(),
-        (df["Remark"] == "📦 Packing only").sum(),
-        (df["Remark"] == "⚠ Qty missing").sum(),
-        (df["Remark"] == "🔁 Reference change").sum(),
-        (df["Remark"] == "🔄 Replacement").sum()
+        (df["Remark"] == "Conform").sum(),
+        (df["Remark"] == "Missing item").sum(),
+        (df["Remark"] == "Packing only").sum(),
+        (df["Remark"] == "Reference change").sum()
     ]
 
-    fig, ax = plt.subplots(figsize=(4, 4))
+    fig, ax = plt.subplots()
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     ax.set_title("KPI Distribution")
 
     return fig
 
 # ==============================
-# MAIN
+# MAIN PROCESS
 # ==============================
 if run:
 
     if not bom_file or not packing_file:
-        st.error("Upload both files")
+        st.error("Please upload both files")
         st.stop()
 
     if not model_input:
@@ -107,133 +81,94 @@ if run:
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
 
-    packing["Model"] = packing["Model"].astype(str).str.strip()
-    packing["Model"] = packing["Model"].replace("", None).ffill()
-
-    packing_model = packing[packing["Model"] == model_input]
+    packing_model = packing[
+        packing["Model"].astype(str).str.strip() == model_input
+    ]
 
     if packing_model.empty:
         st.error("Model not found")
         st.stop()
 
+    # ==============================
+    # GROUP DATA
+    # ==============================
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
-    packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
+    pack_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
 
     df = pd.merge(
         bom_g,
-        packing_g,
+        pack_g,
         on="PN",
         how="outer",
-        suffixes=("_BOM", "_Packing"),
+        suffixes=("_BOM", "_PACK"),
         indicator=True
     )
 
-    df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
-    df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
+    df["bom_qty"] = df["bom_qty"].fillna(0)
+    df["packing_qty"] = df["packing_qty"].fillna(0)
 
-    df["Description_BOM"] = df["Description_BOM"].fillna(df["Description_Packing"])
-
-    df["MP"] = df["bom_qty"] * lot
-    df["SAV"] = df["MP"] * 0.02
-    df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
-    df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
-
-    def detect_remark(row):
-        if row["_merge"] == "left_only":
-            return "❌ Missing item"
-        elif row["_merge"] == "right_only":
-            return "📦 Packing only"
-        elif row["packing_qty"] >= row["Qty (MP+SAV)"]:
-            return "✅ Conform"
-        else:
-            return "⚠ Qty missing"
-
-    df["Remark"] = df.apply(detect_remark, axis=1)
+    df["Remark"] = df["_merge"].map({
+        "both": "Conform",
+        "left_only": "Missing item",
+        "right_only": "Packing only"
+    })
 
     result = df[[
         "PN",
         "Description_BOM",
         "bom_qty",
         "packing_qty",
-        "MP",
-        "SAV",
-        "Qty (MP+SAV)",
-        "Balance",
         "Remark"
     ]].rename(columns={
-        "Description_BOM": "Description",
-        "bom_qty": "Qty BOM",
-        "packing_qty": "Packing list qty"
+        "Description_BOM": "Description"
     })
 
-    # ==============================
-    # ADD SELECTION COLUMN
-    # ==============================
-    result["Select"] = False
-
     st.session_state["result"] = result
-    st.session_state["data_ready"] = True
+    st.session_state["ready"] = True
 
 # ==============================
-# DISPLAY (ONE TABLE ONLY)
+# DISPLAY (1 TABLE ONLY)
 # ==============================
-if "data_ready" in st.session_state and st.session_state["data_ready"]:
+if "ready" in st.session_state:
 
-    result = st.session_state["result"]
+    df = st.session_state["result"]
 
-    st.success("Comparison completed ✅")
-
-    # ==============================
-    # EDITABLE TABLE
-    # ==============================
-    edited_df = st.data_editor(
-        result,
-        use_container_width=True,
-        num_rows="fixed",
-        key="editor"
-    )
-
-    # sécurité colonne Select
-    if "Select" not in edited_df.columns:
-        edited_df = result.copy()
-        edited_df["Select"] = False
-
-    edited_df["Select"] = edited_df["Select"].fillna(False).astype(bool)
-
-    st.session_state["result"] = edited_df
+    st.success("Comparison ready ✅")
 
     # ==============================
-    # BUTTON REFERENCE CHANGE
+    # TABLE EDITABLE
+    # ==============================
+    edited_df = st.data_editor(df, use_container_width=True)
+
+    # ==============================
+    # REFERENCE CHANGE BUTTON
     # ==============================
     if st.button("🔁 Reference Change"):
 
-        selected_idx = edited_df[edited_df["Select"] == True].index.tolist()
+        # Missing → Reference change
+        edited_df.loc[
+            edited_df["Remark"] == "Missing item",
+            "Remark"
+        ] = "Reference change"
 
-        if len(selected_idx) < 2:
-            st.warning("Select at least 2 articles")
-        else:
-            half = len(selected_idx) // 2
+        # Packing only → Replacement
+        edited_df.loc[
+            edited_df["Remark"] == "Packing only",
+            "Remark"
+        ] = "Replacement"
 
-            for i, idx in enumerate(selected_idx):
-                if i < half:
-                    edited_df.at[idx, "Remark"] = "🔁 Reference change"
-                else:
-                    edited_df.at[idx, "Remark"] = "🔄 Replacement"
+        st.session_state["result"] = edited_df
 
-            st.session_state["result"] = edited_df
-            st.success("Reference Change applied ✅")
+        st.success("Reference Change applied ✅")
 
-    result = st.session_state["result"]
+    df = st.session_state["result"]
 
     # ==============================
     # KPI
     # ==============================
-    show_kpis(result)
-
-    st.markdown("---")
+    show_kpis(df)
 
     # ==============================
     # PIE CHART
     # ==============================
-    fig = generate_pie_chart(result)
-    st.pyplot(fig)
+    st.pyplot(generate_pie(df))
