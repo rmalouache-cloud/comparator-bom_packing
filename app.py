@@ -5,8 +5,6 @@ from openpyxl.styles import PatternFill
 from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
-from reportlab.platypus import SimpleDocTemplate, Image as RLImage
-import tempfile
 
 # ==============================
 # CONFIG
@@ -27,11 +25,11 @@ st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
 # ==============================
 # INPUTS
 # ==============================
-bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
+bom_file = st.file_uploader("📄 Upload BOM file", type=["xlsx", "xls"])
 packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
 
-model_input = st.text_input("📺Enter Model")
-lot_input = st.text_input(" 🔢 Enter Lot Quantity")
+model_input = st.text_input("📺 Enter Model")
+lot_input = st.text_input("🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
@@ -72,32 +70,28 @@ def generate_pie_chart(df):
     values = [conform, missing, packing_only, qty_missing, ref_change]
 
     fig, ax = plt.subplots(figsize=(4, 4))
-
-    # ❌ pas de labels, pas de % dans le cercle
     ax.pie(values, startangle=90)
-
     ax.set_title("KPI Distribution (Articles)")
 
     return fig, values
 
 # ==============================
-# COLOR TABLE (REMARK ONLY)
+# TABLE COLOR
 # ==============================
 def highlight_remark_column(df):
-
     styles = []
 
     for val in df["Remark"]:
         if val == "✅ Conform":
-            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
+            styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
         elif val == "⚠ Qty missing":
-            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
+            styles.append("background-color:#F57F17;color:black;font-weight:bold;")
         elif val == "❌ Missing item":
-            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
+            styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
         elif val == "📦 Packing only":
-            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
+            styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
         elif val == "🔁 Reference Change":
-            styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
+            styles.append("background-color:#6A1B9A;color:white;font-weight:bold;")
         else:
             styles.append("")
 
@@ -106,7 +100,7 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT (UPDATED)
+# EXCEL EXPORT
 # ==============================
 def export_excel(df):
 
@@ -127,7 +121,7 @@ def export_excel(df):
         "🔁 Reference Change": "D9D2E9"
     }
 
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+    for row in ws.iter_rows(min_row=2):
         remark = row[8].value
         color = color_map.get(remark)
 
@@ -141,7 +135,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN
+# MAIN CALCULATION
 # ==============================
 if run:
 
@@ -165,8 +159,7 @@ if run:
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
 
-    packing["Model"] = packing["Model"].astype(str).str.strip()
-    packing["Model"] = packing["Model"].replace("", None).ffill()
+    packing["Model"] = packing["Model"].astype(str).str.strip().replace("", None).ffill()
 
     packing_model = packing[packing["Model"] == model_input]
 
@@ -177,14 +170,7 @@ if run:
     bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
     packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
 
-    df = pd.merge(
-        bom_g,
-        packing_g,
-        on="PN",
-        how="outer",
-        suffixes=("_BOM", "_Packing"),
-        indicator=True
-    )
+    df = pd.merge(bom_g, packing_g, on="PN", how="outer", suffixes=("_BOM", "_Packing"), indicator=True)
 
     df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
     df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
@@ -194,7 +180,6 @@ if run:
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
     df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
-    df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
     def detect_remark(row):
         if row["_merge"] == "left_only":
@@ -216,13 +201,11 @@ if run:
         "MP",
         "SAV",
         "Qty (MP+SAV)",
-        "Balance",
         "Remark"
-    ]].rename(columns={
-        "Description_BOM": "Description",
-        "bom_qty": "Qty BOM",
-        "packing_qty": "Packing list qty"
-    })
+    ]].rename(columns={"Description_BOM": "Description"})
+
+    result["Comment"] = ""
+    result["Select"] = False
 
     st.session_state["result"] = result
 
@@ -239,9 +222,43 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # 📋 SINGLE COLORED TABLE ONLY
+    # TABLE (single + colored)
     styled = result.style.apply(highlight_remark_column, axis=None)
-    st.dataframe(styled, use_container_width=True)
+    edited_df = st.data_editor(styled, use_container_width=True, key="table")
+
+    st.session_state["result"] = edited_df
+
+    # ==============================
+    # 🔁 REFERENCE CHANGE BUTTON (RESTORED)
+    # ==============================
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+            remarks = selected["Remark"].tolist()
+
+            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
+
+                    df.loc[i, "Select"] = False
+
+                st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
+
+            else:
+                st.error("❌ Need 1 Missing + 1 Packing only")
 
     # ==============================
     # PIE + LEGEND
@@ -255,26 +272,22 @@ if "result" in st.session_state:
         st.pyplot(fig)
 
     with col2:
-
         labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
         colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A"]
 
         total = sum(values)
 
-        st.markdown("### 🧾 Legend")
-
         for label, val, color in zip(labels, values, colors):
             percent = (val / total * 100) if total else 0
-
-            st.markdown(f"""
-                <div style="display:flex; align-items:center; margin-bottom:6px;">
-                    <div style="width:14px;height:14px;background:{color};margin-right:8px;"></div>
-                    <b>{label}</b> : {val} ({percent:.1f}%)
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='display:flex;align-items:center;margin-bottom:6px;'>"
+                f"<div style='width:12px;height:12px;background:{color};margin-right:8px;'></div>"
+                f"<b>{label}</b>: {val} ({percent:.1f}%)</div>",
+                unsafe_allow_html=True
+            )
 
     # ==============================
-    # DOWNLOAD EXCEL
+    # DOWNLOAD
     # ==============================
     excel_file = export_excel(result)
 
