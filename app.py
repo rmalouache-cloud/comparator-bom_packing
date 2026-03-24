@@ -51,6 +51,7 @@ def show_kpis(df):
 # ==============================
 def generate_pie_chart(df):
     labels = ["Conform", "Missing", "Packing Only", "Qty Missing"]
+
     values = [
         (df["Remark"] == "✅ Conform").sum(),
         (df["Remark"] == "❌ Missing item").sum(),
@@ -63,37 +64,11 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# COLOR STYLE
-# ==============================
-def highlight(df):
-    styles = []
-
-    for v in df["Remark"]:
-        if v == "✅ Conform":
-            styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
-        elif v == "❌ Missing item":
-            styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
-        elif v == "📦 Packing only":
-            styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
-        elif v == "⚠ Qty missing":
-            styles.append("background-color:#F57F17;color:black;font-weight:bold;")
-        elif v == "🔁 Reference Change":
-            styles.append("background-color:#6A1B9A;color:white;font-weight:bold;")
-        elif v == "🔄 Replacement":
-            styles.append("background-color:#00838F;color:white;font-weight:bold;")
-        else:
-            styles.append("")
-
-    out = pd.DataFrame("", index=df.index, columns=df.columns)
-    out["Remark"] = styles
-    return out
-
-# ==============================
 # EXPORT EXCEL
 # ==============================
 def export_excel(df):
 
-    df_export = df.drop(columns=["Select", "Status"], errors="ignore")
+    df_export = df.drop(columns=["Select"], errors="ignore")
 
     output = BytesIO()
 
@@ -132,7 +107,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN
+# MAIN PROCESS
 # ==============================
 if run:
 
@@ -156,8 +131,7 @@ if run:
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
 
-    packing["Model"] = packing["Model"].astype(str).str.strip()
-    packing_model = packing[packing["Model"] == model_input]
+    packing_model = packing[packing["Model"].astype(str).str.strip() == model_input]
 
     if packing_model.empty:
         st.error("Model not found")
@@ -206,11 +180,25 @@ if run:
         "Remark"
     ]]
 
-   
+    # ==============================
+    # CLEAN NUMBERS
+    # ==============================
+    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
 
-# ==========================
+    for c in num_cols:
+        result[c] = pd.to_numeric(result[c], errors="coerce").round(0).astype("Int64")
+
+    # ==============================
+    # ADD UI COLUMNS
+    # ==============================
+    result["Select"] = False
+    result["Comment"] = ""
+
+    st.session_state["result"] = result
+
+# ==============================
 # DISPLAY (ONE TABLE ONLY)
-# ==========================
+# ==============================
 if "result" in st.session_state:
 
     df = st.session_state["result"]
@@ -219,34 +207,20 @@ if "result" in st.session_state:
 
     show_kpis(df)
 
-    # ==========================
-    # CLEAN NUMBERS DISPLAY
-    # ==========================
-    display_df = df.copy()
-
-    num_cols = ["bom_qty", "packing_qty", "MP", "SAV", "Qty (MP+SAV)", "Balance"]
-
-    for c in num_cols:
-        display_df[c] = pd.to_numeric(display_df[c], errors="coerce").round(0).astype("Int64")
-
-    # ==========================
+    # ==============================
     # SINGLE EDITABLE TABLE
-    # ==========================
+    # ==============================
     edited_df = st.data_editor(
-        display_df,
+        df,
         use_container_width=True,
-        key="table",
-        column_config={
-            "Select": st.column_config.CheckboxColumn("Select"),
-            "Remark": st.column_config.TextColumn("Remark"),
-        }
+        key="table"
     )
 
     st.session_state["result"] = edited_df
 
-    # ==========================
+    # ==============================
     # REFERENCE CHANGE
-    # ==========================
+    # ==============================
     if st.button("🔁 Apply Reference Change"):
 
         df = st.session_state["result"]
@@ -276,16 +250,16 @@ if "result" in st.session_state:
             else:
                 st.error("❌ Need 1 Missing + 1 Packing only")
 
-    # ==========================
+    # ==============================
     # PIE CHART
-    # ==========================
+    # ==============================
     st.markdown("### 📊 KPI Distribution")
     fig = generate_pie_chart(df)
     st.pyplot(fig)
 
-    # ==========================
-    # DOWNLOAD
-    # ==========================
+    # ==============================
+    # DOWNLOAD EXCEL
+    # ==============================
     excel_file = export_excel(df)
 
     st.download_button(
