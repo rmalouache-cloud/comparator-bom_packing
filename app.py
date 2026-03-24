@@ -42,30 +42,30 @@ def show_kpis(df):
 
     total = len(df)
 
-    conform = (df["Remark"] == "✅ Conform").sum()
-    missing = (df["Remark"] == "❌ Missing item").sum()
-    packing_only = (df["Remark"] == "📦 Packing only").sum()
-    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
-    ref_change = (df["Remark"] == "🔁 Reference change").sum()
-    replacement = (df["Remark"] == "🔄 Replacement").sum()
-
     st.markdown(f"### 📊 Total Articles: {total}")
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
 
-    c1.metric("✅ Conform", conform)
-    c2.metric("❌ Missing", missing)
-    c3.metric("📦 Packing only", packing_only)
-    c4.metric("⚠ Qty missing", qty_missing)
-    c5.metric("🔁 Ref Change", ref_change)
-    c6.metric("🔄 Replacement", replacement)
+    c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
+    c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
+    c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
+    c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
+    c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference change").sum())
+    c6.metric("🔄 Replacement", (df["Remark"] == "🔄 Replacement").sum())
 
 # ==============================
 # PIE CHART
 # ==============================
 def generate_pie_chart(df):
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
+    labels = [
+        "Conform",
+        "Missing",
+        "Packing Only",
+        "Qty Missing",
+        "Ref Change",
+        "Replacement"
+    ]
 
     values = [
         (df["Remark"] == "✅ Conform").sum(),
@@ -83,34 +83,7 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# TABLE STYLE
-# ==============================
-def highlight_remark_column(df):
-
-    styles = []
-
-    for val in df["Remark"]:
-        if val == "✅ Conform":
-            styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
-        elif val == "⚠ Qty missing":
-            styles.append("background-color:#F57F17;color:black;font-weight:bold;")
-        elif val == "❌ Missing item":
-            styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
-        elif val == "📦 Packing only":
-            styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
-        elif val == "🔁 Reference change":
-            styles.append("background-color:#6A1B9A;color:white;font-weight:bold;")
-        elif val == "🔄 Replacement":
-            styles.append("background-color:#283593;color:white;font-weight:bold;")
-        else:
-            styles.append("")
-
-    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
-    style_df["Remark"] = styles
-    return style_df
-
-# ==============================
-# MAIN CALCULATION
+# MAIN
 # ==============================
 if run:
 
@@ -194,7 +167,7 @@ if run:
     })
 
     # ==============================
-    # ADD SELECT COLUMN (IMPORTANT FIX)
+    # ADD SELECTION COLUMN
     # ==============================
     result["Select"] = False
 
@@ -202,7 +175,7 @@ if run:
     st.session_state["data_ready"] = True
 
 # ==============================
-# DISPLAY SECTION
+# DISPLAY (ONE TABLE ONLY)
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
@@ -211,7 +184,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.success("Comparison completed ✅")
 
     # ==============================
-    # DATA EDITOR (SAFE)
+    # EDITABLE TABLE
     # ==============================
     edited_df = st.data_editor(
         result,
@@ -220,7 +193,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         key="editor"
     )
 
-    # 🔥 FIX IMPORTANT: force Select always exists
+    # sécurité colonne Select
     if "Select" not in edited_df.columns:
         edited_df = result.copy()
         edited_df["Select"] = False
@@ -260,15 +233,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     st.markdown("---")
 
     # ==============================
-    # STYLED TABLE
-    # ==============================
-    styled = result.style.apply(highlight_remark_column, axis=None)
-    st.dataframe(styled, use_container_width=True)
-
-    # ==============================
     # PIE CHART
     # ==============================
-    st.markdown("### 📊 KPI Distribution")
-
     fig = generate_pie_chart(result)
     st.pyplot(fig)
