@@ -5,6 +5,8 @@ from openpyxl.styles import PatternFill
 from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
+from reportlab.platypus import SimpleDocTemplate, Image as RLImage
+import tempfile
 
 # ==============================
 # CONFIG
@@ -20,16 +22,16 @@ try:
 except:
     st.title("BOM Comparator")
 
-st.markdown("## 📊 BOM vs Packing Comparison Tool ⚖️")
+st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
 
 # ==============================
 # INPUTS
 # ==============================
-bom_file = st.file_uploader("📄 Upload BOM file", type=["xlsx", "xls"])
+bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
 packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
 
-model_input = st.text_input("📺 Enter Model")
-lot_input = st.text_input("🔢 Enter Lot Quantity")
+model_input = st.text_input("📺Enter Model")
+lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 
 run = st.button("🚀 Compare")
 
@@ -43,15 +45,19 @@ def show_kpis(df):
     missing = (df["Remark"] == "❌ Missing item").sum()
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    ref_change = (df["Remark"] == "🔁 Reference Change").sum()
+    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
     st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
     c1.metric("✅ Conform", conform)
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
+    c5.metric("🔁 Ref Change", ref_change)
+    c6.metric("🔄 Replacement", replacement)
 
 # ==============================
 # PIE CHART
@@ -62,35 +68,37 @@ def generate_pie_chart(df):
     missing = (df["Remark"] == "❌ Missing item").sum()
     packing_only = (df["Remark"] == "📦 Packing only").sum()
     qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
+    ref_change = (df["Remark"] == "🔁 Reference Change").sum()
+    replacement = (df["Remark"] == "🔄 Replacement").sum()
 
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing"]
-    values = [conform, missing, packing_only, qty_missing]
+    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
+    values = [conform, missing, packing_only, qty_missing, ref_change, replacement]
 
     fig, ax = plt.subplots(figsize=(4, 4))
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-    ax.set_title("KPI Distribution")
+    ax.set_title("KPI Distribution (Articles)")
 
-    return fig
+    return fig, values
 
 # ==============================
-# TABLE STYLE (SAFE VERSION)
+# TABLE STYLE (UI COLOR REMARK)
 # ==============================
 def highlight_remark_column(df):
-
-    if "Remark" not in df.columns:
-        return pd.DataFrame("", index=df.index, columns=df.columns)
-
     styles = []
 
     for val in df["Remark"]:
         if val == "✅ Conform":
-            styles.append("background-color:#1B5E20;color:white;font-weight:bold;")
-        elif val == "❌ Missing item":
-            styles.append("background-color:#B71C1C;color:white;font-weight:bold;")
-        elif val == "📦 Packing only":
-            styles.append("background-color:#0D47A1;color:white;font-weight:bold;")
+            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
         elif val == "⚠ Qty missing":
-            styles.append("background-color:#F57F17;color:black;font-weight:bold;")
+            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
+        elif val == "❌ Missing item":
+            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
+        elif val == "📦 Packing only":
+            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
+        elif val == "🔁 Reference Change":
+            styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
+        elif val == "🔄 Replacement":
+            styles.append("background-color: #00838F; color: white; font-weight: bold;")
         else:
             styles.append("")
 
@@ -99,16 +107,14 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT (COLOR FIXED)
+# EXCEL EXPORT
 # ==============================
 def export_excel(df):
 
     output = BytesIO()
 
-    export_df = df.drop(columns=["Select", "Remark"], errors="ignore")
-
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        export_df.to_excel(writer, index=False, sheet_name="Result")
+        df.to_excel(writer, index=False, sheet_name="Result")
 
     output.seek(0)
     wb = load_workbook(output)
@@ -116,27 +122,20 @@ def export_excel(df):
 
     color_map = {
         "✅ Conform": "C6EFCE",
+        "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
         "📦 Packing only": "BDD7EE",
-        "⚠ Qty missing": "FFEB9C"
+        "🔁 Reference Change": "D9D2E9",
+        "🔄 Replacement": "B2EBF2"
     }
 
-    headers = [cell.value for cell in ws[1]]
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        remark = row[8].value
+        color = color_map.get(remark)
 
-    if "Remark" in headers:
-        idx = headers.index("Remark") + 1
-
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-            remark = row[idx - 1].value
-            color = color_map.get(remark)
-
-            if color:
-                for cell in row:
-                    cell.fill = PatternFill(
-                        start_color=color,
-                        end_color=color,
-                        fill_type="solid"
-                    )
+        if color:
+            for cell in row:
+                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
 
     final = BytesIO()
     wb.save(final)
@@ -144,7 +143,7 @@ def export_excel(df):
     return final
 
 # ==============================
-# MAIN CALCULATION
+# MAIN
 # ==============================
 if run:
 
@@ -168,7 +167,8 @@ if run:
     bom.columns = bom.columns.str.strip()
     packing.columns = packing.columns.str.strip()
 
-    packing["Model"] = packing["Model"].astype(str).str.strip().replace("", None).ffill()
+    packing["Model"] = packing["Model"].astype(str).str.strip()
+    packing["Model"] = packing["Model"].replace("", None).ffill()
 
     packing_model = packing[packing["Model"] == model_input]
 
@@ -196,6 +196,7 @@ if run:
     df["MP"] = df["bom_qty"] * lot
     df["SAV"] = df["MP"] * 0.02
     df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
+    df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
 
     def detect_remark(row):
         if row["_merge"] == "left_only":
@@ -209,9 +210,6 @@ if run:
 
     df["Remark"] = df.apply(detect_remark, axis=1)
 
-    # ==============================
-    # RESULT (NO STATUS DISPLAY)
-    # ==============================
     result = df[[
         "PN",
         "Description_BOM",
@@ -219,10 +217,16 @@ if run:
         "packing_qty",
         "MP",
         "SAV",
-        "Qty (MP+SAV)"
-    ]].rename(columns={"Description_BOM": "Description"})
+        "Qty (MP+SAV)",
+        "Balance",
+        "Remark"
+    ]].rename(columns={
+        "Description_BOM": "Description",
+        "bom_qty": "Qty BOM",
+        "packing_qty": "Packing list qty"
+    })
 
-    result["Remark"] = df["Remark"]
+    result["Comment"] = ""
     result["Select"] = False
 
     st.session_state["result"] = result
@@ -240,28 +244,88 @@ if "result" in st.session_state:
 
     st.markdown("---")
 
-    # 📊 TABLE WITHOUT STATUS
-    display_df = result.drop(columns=["Remark"], errors="ignore")
+    # ==========================
+    # TABLE (DATA EDITOR)
+    # ==========================
+    edited_df = st.data_editor(result, use_container_width=True, key="table")
+    st.session_state["result"] = edited_df
 
-    styled = display_df.style.apply(highlight_remark_column, axis=None)
-
+    # ==========================
+    # COLORIZED VIEW (AJOUT)
+    # ==========================
+    st.markdown("### 🎨 Colored Table View")
+    styled = edited_df.style.apply(highlight_remark_column, axis=None)
     st.dataframe(styled, use_container_width=True)
 
-    # ==============================
-    # PIE CHART
-    # ==============================
+    # ==========================
+    # REFERENCE CHANGE
+    # ==========================
+    if st.button("🔁 Apply Reference Change"):
+
+        df = st.session_state["result"]
+        selected = df[df["Select"] == True]
+
+        if len(selected) != 2:
+            st.warning("⚠ Select exactly 2 rows")
+        else:
+            idx = selected.index.tolist()
+            remarks = selected["Remark"].tolist()
+
+            if ("❌ Missing item" in remarks) and ("📦 Packing only" in remarks):
+
+                for i in idx:
+                    if df.loc[i, "Remark"] == "❌ Missing item":
+                        df.loc[i, "Remark"] = "🔁 Reference Change"
+                        df.loc[i, "Comment"] = "Original BOM item"
+                    else:
+                        df.loc[i, "Remark"] = "🔄 Replacement"
+                        df.loc[i, "Comment"] = "Replaced by new reference"
+
+                    df.loc[i, "Select"] = False
+
+                st.session_state["result"] = df
+                st.success("🔁 Reference Change applied")
+
+            else:
+                st.error("❌ Need 1 Missing + 1 Packing only")
+
+    # ==========================
+    # PIE + LEGEND (AJOUT)
+    # ==========================
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        fig = generate_pie_chart(result)
+        fig, values = generate_pie_chart(st.session_state["result"])
         st.pyplot(fig)
 
-    # ==============================
-    # DOWNLOAD EXCEL
-    # ==============================
-    excel_file = export_excel(result)
+    with col2:
+
+        labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change", "Replacement"]
+        colors = ["#1B5E20", "#B71C1C", "#0D47A1", "#F57F17", "#6A1B9A", "#00838F"]
+
+        total = sum(values)
+
+        st.markdown("### 🧾 Legend")
+
+        for label, val, color in zip(labels, values, colors):
+            percent = (val / total * 100) if total else 0
+
+            st.markdown(
+                f"""
+                <div style="display:flex; align-items:center; margin-bottom:6px;">
+                    <div style="width:15px;height:15px;background:{color};margin-right:8px;"></div>
+                    <b>{label}</b> : {val} ({percent:.1f}%)
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    # ==========================
+    # EXCEL DOWNLOAD
+    # ==========================
+    excel_file = export_excel(st.session_state["result"])
 
     st.download_button(
         "📥 Download Excel Result",
