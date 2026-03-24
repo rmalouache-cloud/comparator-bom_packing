@@ -41,15 +41,52 @@ run = st.button("🚀 Compare")
 def show_kpis(df):
 
     total = len(df)
-    st.markdown(f"### 📊 Total Articles: {total}")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    st.markdown(
+        f"""
+        <div style="
+            background-color:#0f172a;
+            padding:15px;
+            border-radius:10px;
+            color:white;
+            margin-bottom:10px;
+            font-size:16px;
+        ">
+            <b>📊 Total Articles: {total}</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    c1.metric("✅ Conform", (df["Remark"] == "✅ Conform").sum())
-    c2.metric("❌ Missing", (df["Remark"] == "❌ Missing item").sum())
-    c3.metric("📦 Packing only", (df["Remark"] == "📦 Packing only").sum())
-    c4.metric("⚠ Qty missing", (df["Remark"] == "⚠ Qty missing").sum())
-    c5.metric("🔁 Ref Change", (df["Remark"] == "🔁 Reference change").sum())
+    kpis = {
+        "✅ Conform": (df["Remark"] == "✅ Conform").sum(),
+        "❌ Missing": (df["Remark"] == "❌ Missing item").sum(),
+        "📦 Packing only": (df["Remark"] == "📦 Packing only").sum(),
+        "⚠ Qty missing": (df["Remark"] == "⚠ Qty missing").sum(),
+        "🔁 Ref Change": (df["Remark"] == "🔁 Reference change").sum(),
+    }
+
+    cols = st.columns(len(kpis))
+
+    colors = ["#2ecc71", "#e74c3c", "#f39c12", "#3498db", "#9b59b6"]
+
+    for i, (label, value) in enumerate(kpis.items()):
+        cols[i].markdown(
+            f"""
+            <div style="
+                background-color:{colors[i]};
+                padding:12px;
+                border-radius:10px;
+                text-align:center;
+                color:white;
+                font-weight:bold;
+            ">
+                {label}<br>
+                <span style="font-size:20px">{value}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ==============================
 # PIE CHART
@@ -253,7 +290,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
                 if i < half:
                     updated_df.at[idx, "Remark"] = "🔁 Reference change"
                 else:
-                    updated_df.at[idx, "Remark"] = "📦 Replacement"
+                    updated_df.at[idx, "Remark"] = "🔁 Replacement"
 
             st.session_state["result"] = updated_df
             st.rerun()
