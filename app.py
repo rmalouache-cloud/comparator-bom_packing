@@ -36,6 +36,20 @@ lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 run = st.button("🚀 Compare")
 
 # ==============================
+# 🔁 REF CHANGE BUTTON
+# ==============================
+if "ref_change_mode" not in st.session_state:
+    st.session_state["ref_change_mode"] = False
+
+if st.button("🔁 Sélection changement de référence"):
+    st.session_state["ref_change_mode"] = not st.session_state["ref_change_mode"]
+
+if st.session_state["ref_change_mode"]:
+    st.info("🔁 Mode changement de référence ACTIVÉ")
+else:
+    st.info("Mode normal")
+
+# ==============================
 # KPI
 # ==============================
 def show_kpis(df):
@@ -70,43 +84,28 @@ def generate_pie_chart(df):
 
     fig, ax = plt.subplots(figsize=(4, 4))
 
-    ax.pie(
-        values,
-        labels=labels,
-        autopct="%1.1f%%",
-        startangle=90
-    )
-
+    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
     ax.set_title("KPI Distribution (Articles)")
 
     return fig
 
 # ==============================
-# TABLE STYLE
+# ✅ STYLE FIX (IMPORTANT)
 # ==============================
-def highlight_remark_column(df):
+def highlight_remark_column(row):
 
-    styles = []
+    styles = [""] * len(row)
 
-    for val in df["Remark"]:
-        if val == "✅ Conform":
-            styles.append("background-color: #1B5E20; color: white; font-weight: bold;")
-        elif val == "⚠ Qty missing":
-            styles.append("background-color: #F57F17; color: black; font-weight: bold;")
-        elif val == "❌ Missing item":
-            styles.append("background-color: #B71C1C; color: white; font-weight: bold;")
-        elif val == "📦 Packing only":
-            styles.append("background-color: #0D47A1; color: white; font-weight: bold;")
-        elif val == "🔁 Reference Change":
-            styles.append("background-color: #6A1B9A; color: white; font-weight: bold;")
-        elif val == "🔄 Replacement":
-            styles.append("background-color: #00838F; color: white; font-weight: bold;")
-        else:
-            styles.append("")
+    if row["Remark"] == "✅ Conform":
+        styles[-1] = "background-color: #1B5E20; color: white; font-weight: bold;"
+    elif row["Remark"] == "⚠ Qty missing":
+        styles[-1] = "background-color: #F57F17; color: black; font-weight: bold;"
+    elif row["Remark"] == "❌ Missing item":
+        styles[-1] = "background-color: #B71C1C; color: white; font-weight: bold;"
+    elif row["Remark"] == "📦 Packing only":
+        styles[-1] = "background-color: #0D47A1; color: white; font-weight: bold;"
 
-    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
-    style_df["Remark"] = styles
-    return style_df
+    return styles
 
 # ==============================
 # EXCEL EXPORT
@@ -126,9 +125,7 @@ def export_excel(df):
         "✅ Conform": "C6EFCE",
         "⚠ Qty missing": "FFEB9C",
         "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE",
-        "🔁 Reference Change": "D9B3FF",
-        "🔄 Replacement": "B2EBF2"
+        "📦 Packing only": "BDD7EE"
     }
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
@@ -228,9 +225,6 @@ if run:
         "packing_qty": "Packing list qty"
     })
 
-    # ✅ AJOUT SELECT
-    result["Select"] = False
-
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
 
@@ -247,30 +241,11 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
 
     st.markdown("---")
 
-    # ✅ TABLE EDITABLE
-    edited_df = st.data_editor(result, use_container_width=True)
-    st.session_state["result"] = edited_df
+    styled = result.style.apply(highlight_remark_column, axis=1)
 
-    # ✅ BOUTON REFERENCE CHANGE
-    if st.button("🔁 Apply Reference Change"):
+    # IMPORTANT: utiliser write au lieu de dataframe
+    st.write(styled)
 
-        df = st.session_state["result"]
-        selected = df[df["Select"] == True]
-
-        if len(selected) != 2:
-            st.warning("⚠ Select exactly 2 rows")
-        else:
-            idx = selected.index.tolist()
-
-            df.loc[idx[0], "Remark"] = "🔁 Reference Change"
-            df.loc[idx[1], "Remark"] = "🔄 Replacement"
-
-            st.session_state["result"] = df
-            st.success("✅ Reference change applied")
-
-    # ==============================
-    # PIE CHART + PDF
-    # ==============================
     st.markdown("### 📊 KPI Distribution")
 
     col1, col2, col3 = st.columns([1, 2, 1])
