@@ -25,7 +25,7 @@ except:
 st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
 
 # ==============================
-# INPUTS (dans l'ordre original)
+# INPUTS
 # ==============================
 bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
 packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
@@ -36,7 +36,7 @@ lot_input = st.text_input(" 🔢 Enter Lot Quantity")
 run = st.button("🚀 Compare")
 
 # ==============================
-# STYLES CSS pour les statuts encadrés
+# STYLES CSS
 # ==============================
 st.markdown("""
     <style>
@@ -46,6 +46,13 @@ st.markdown("""
         border-radius: 5px;
         font-weight: bold;
         border: 2px solid;
+    }
+    .ref-change-box {
+        background-color: #F3E5F5;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #9C27B0;
+        margin: 20px 0;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -90,7 +97,7 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# TABLE STYLE avec bordures
+# TABLE STYLE
 # ==============================
 def highlight_remark_column(df):
     styles = []
@@ -197,83 +204,132 @@ if run:
     
     st.session_state["result"] = result
     st.session_state["data_ready"] = True
+    # Initialiser les changements de référence comme un dictionnaire vide
     st.session_state["ref_changes"] = {}
 
 # ==============================
-# GESTION CHANGEMENT REFERENCE
+# AFFICHAGE DES RÉSULTATS
 # ==============================
 if "data_ready" in st.session_state and st.session_state["data_ready"]:
     result = st.session_state["result"].copy()
     
-    # Appliquer les changements de référence
+    # Appliquer les changements de référence (un seul comptage par paire)
     if "ref_changes" in st.session_state:
         for old_ref, new_ref in st.session_state["ref_changes"].items():
+            # Marquer les deux articles comme changement de référence
             result.loc[result["PN"] == old_ref, "Remark"] = "🔄 Reference Change"
             result.loc[result["PN"] == new_ref, "Remark"] = "🔄 Reference Change"
     
-    # Interface pour changement de référence (avant le cercle)
-    st.markdown("---")
-    st.markdown("### 🔄 Gestion des changements de référence")
-    st.markdown("Sélectionnez un article 'Missing' et un article 'Packing only' pour les fusionner comme changement de référence")
-    
-    missing_items = result[result["Remark"] == "❌ Missing item"]
-    packing_items = result[result["Remark"] == "📦 Packing only"]
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if not missing_items.empty:
-            selected_missing = st.selectbox(
-                "❌ Ancienne référence (Missing)",
-                options=missing_items["PN"].tolist(),
-                key="missing_select"
-            )
-        else:
-            st.info("Aucun article Missing")
-            selected_missing = None
-    
-    with col2:
-        if not packing_items.empty:
-            selected_packing = st.selectbox(
-                "📦 Nouvelle référence (Packing only)",
-                options=packing_items["PN"].tolist(),
-                key="packing_select"
-            )
-        else:
-            st.info("Aucun article Packing only")
-            selected_packing = None
-    
-    if selected_missing and selected_packing:
-        if st.button("🔄 Appliquer changement de référence", key="apply_ref_change"):
-            if "ref_changes" not in st.session_state:
-                st.session_state["ref_changes"] = {}
-            # Un seul mapping : missing --> packing
-            st.session_state["ref_changes"][selected_missing] = selected_packing
-            st.success(f"✅ Changement appliqué : {selected_missing} → {selected_packing}")
-            st.rerun()
-    
-    # Afficher les changements actuels
-    if st.session_state.get("ref_changes"):
-        st.info("**Changements de référence actifs :**")
-        for old, new in st.session_state["ref_changes"].items():
-            st.write(f"`{old}` → `{new}`")
-        if st.button("🗑️ Réinitialiser tous les changements"):
-            st.session_state["ref_changes"] = {}
-            st.rerun()
-    
-    st.markdown("---")
-    
-    # ==============================
-    # AFFICHAGE (dans l'ordre demandé)
-    # ==============================
     st.success("Comparison completed ✅")
     
-    # 1. KPI
+    # 1. AFFICHAGE DES KPIs
     show_kpis(result)
     
     st.markdown("---")
     
-    # 2. CERCLE (PIE CHART)
+    # 2. TABLEAU DES RÉSULTATS (avant le cercle)
+    st.markdown("### 📋 Résultat détaillé")
+    styled = result.style.apply(highlight_remark_column, axis=None)
+    st.dataframe(styled, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # 3. GESTION DES CHANGEMENTS DE RÉFÉRENCE (organisé)
+    st.markdown("### 🔄 Gestion des changements de référence")
+    
+    with st.container():
+        st.markdown('<div class="ref-change-box">', unsafe_allow_html=True)
+        
+        col_info, col_warning = st.columns([2, 1])
+        with col_info:
+            st.markdown("""
+            **Comment détecter un changement de référence ?**  
+            Lorsqu'un article est marqué "❌ Missing item" et un autre "📦 Packing only" avec des descriptions similaires,  
+            cela peut indiquer un changement de référence. Utilisez l'outil ci-dessous pour les fusionner.
+            """)
+        
+        with col_warning:
+            st.info("💡 **Astuce :** Un changement de référence comptabilise 1 seul article dans les KPIs")
+        
+        st.markdown("---")
+        
+        # Sélection des articles
+        missing_items = result[result["Remark"] == "❌ Missing item"]
+        packing_items = result[result["Remark"] == "📦 Packing only"]
+        
+        col1, col2, col3 = st.columns([2, 1, 2])
+        
+        with col1:
+            st.markdown("**❌ Ancienne référence (Missing)**")
+            if not missing_items.empty:
+                selected_missing = st.selectbox(
+                    "Sélectionner l'article manquant",
+                    options=missing_items["PN"].tolist(),
+                    format_func=lambda x: f"{x} - {missing_items[missing_items['PN']==x]['Description'].values[0][:50]}",
+                    key="missing_select"
+                )
+            else:
+                st.info("Aucun article 'Missing' détecté")
+                selected_missing = None
+        
+        with col3:
+            st.markdown("**📦 Nouvelle référence (Packing only)**")
+            if not packing_items.empty:
+                selected_packing = st.selectbox(
+                    "Sélectionner l'article Packing only",
+                    options=packing_items["PN"].tolist(),
+                    format_func=lambda x: f"{x} - {packing_items[packing_items['PN']==x]['Description'].values[0][:50]}",
+                    key="packing_select"
+                )
+            else:
+                st.info("Aucun article 'Packing only' détecté")
+                selected_packing = None
+        
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if selected_missing and selected_packing:
+                if st.button("🔄 Appliquer changement", use_container_width=True, key="apply_ref"):
+                    # Vérifier si ce n'est pas déjà un changement existant
+                    existing = False
+                    for old, new in st.session_state["ref_changes"].items():
+                        if old == selected_missing or new == selected_packing:
+                            existing = True
+                            break
+                    
+                    if not existing:
+                        st.session_state["ref_changes"][selected_missing] = selected_packing
+                        st.success(f"✅ Changement appliqué : {selected_missing} → {selected_packing}")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Cet article est déjà impliqué dans un changement de référence")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Afficher les changements actifs
+    if st.session_state.get("ref_changes"):
+        st.markdown("### 📝 Changements de référence actifs")
+        
+        # Créer un dataframe pour l'affichage
+        changes_data = []
+        for idx, (old, new) in enumerate(st.session_state["ref_changes"].items(), 1):
+            changes_data.append({
+                "N°": idx,
+                "Ancienne référence": old,
+                "Nouvelle référence": new
+            })
+        
+        changes_df = pd.DataFrame(changes_data)
+        st.dataframe(changes_df, use_container_width=True, hide_index=True)
+        
+        col_reset1, col_reset2, col_reset3 = st.columns([1, 2, 1])
+        with col_reset2:
+            if st.button("🗑️ Réinitialiser tous les changements", use_container_width=True):
+                st.session_state["ref_changes"] = {}
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # 4. CERCLE (PIE CHART) après le tableau
     st.markdown("### 📊 KPI Distribution")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -299,18 +355,15 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
             mime="application/pdf"
         )
     
-    st.markdown("---")
-    
-    # 3. TABLEAU DES RÉSULTATS (après le cercle)
-    st.markdown("### 📋 Résultat détaillé")
-    styled = result.style.apply(highlight_remark_column, axis=None)
-    st.dataframe(styled, use_container_width=True)
-    
     # EXCEL DOWNLOAD
-    excel_file = export_excel(result)
-    st.download_button(
-        "📥 Download Excel Result",
-        data=excel_file,
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    st.markdown("---")
+    col_exp1, col_exp2, col_exp3 = st.columns([1, 2, 1])
+    with col_exp2:
+        excel_file = export_excel(result)
+        st.download_button(
+            "📥 Download Excel Result",
+            data=excel_file,
+            file_name="BOM_vs_Packing.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
