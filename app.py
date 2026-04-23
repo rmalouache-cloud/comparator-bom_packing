@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
+from openpyxl.styles import PatternFill, Border, Side
 from io import BytesIO
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def generate_pie_chart(df):
     # Pour le graphique, on utilise le nombre de paires
     labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
     values = [conform, missing, packing_only, qty_missing, ref_change_pairs]
-    colors = ['#4CAF50', '#F44336', '#9C27B0', '#FF9800', '#2196F3']  # Vert, Rouge, Violet, Orange, Bleu
+    colors = ['#4CAF50', '#F44336', '#9C27B0', '#FF9800', '#2196F3']
 
     fig, ax = plt.subplots(figsize=(4, 4))
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90, colors=colors)
@@ -82,21 +82,21 @@ def generate_pie_chart(df):
     return fig
 
 # ==============================
-# TABLE STYLE
+# TABLE STYLE avec bordures noires
 # ==============================
 def highlight_remark_column(df):
     styles = []
     for val in df["Remark"]:
         if val == "✅ Conform":
-            styles.append("background-color: #4CAF50; color: white; font-weight: bold; border: 2px solid #2E7D32; border-radius: 5px;")
+            styles.append("background-color: #4CAF50; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
         elif val == "⚠ Qty missing":
-            styles.append("background-color: #FF9800; color: white; font-weight: bold; border: 2px solid #E65100; border-radius: 5px;")
+            styles.append("background-color: #FF9800; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
         elif val == "❌ Missing item":
-            styles.append("background-color: #F44336; color: white; font-weight: bold; border: 2px solid #C62828; border-radius: 5px;")
+            styles.append("background-color: #F44336; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
         elif val == "📦 Packing only":
-            styles.append("background-color: #9C27B0; color: white; font-weight: bold; border: 2px solid #6A1B9A; border-radius: 5px;")
+            styles.append("background-color: #9C27B0; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
         elif val == "🔄 Reference Change":
-            styles.append("background-color: #2196F3; color: white; font-weight: bold; border: 2px solid #1565C0; border-radius: 5px;")
+            styles.append("background-color: #2196F3; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
         else:
             styles.append("")
     
@@ -105,7 +105,7 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT AVEC NOUVELLES COULEURS
+# EXCEL EXPORT AVEC COULEURS CLAIRES ET BORDURES NOIRES
 # ==============================
 def export_excel(df):
     output = BytesIO()
@@ -115,13 +115,26 @@ def export_excel(df):
     wb = load_workbook(output)
     ws = wb.active
     
-    # Nouvelles couleurs pour Excel
+    # Définir les bordures noires
+    thin_border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    
+    # Appliquer les bordures à toutes les cellules
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.border = thin_border
+    
+    # Couleurs plus claires pour Excel
     color_map = {
-        "✅ Conform": "92D050",      # Vert
-        "⚠ Qty missing": "FFC000",   # Orange
-        "❌ Missing item": "FF0000",  # Rouge
-        "📦 Packing only": "9C27B0",  # Violet
-        "🔄 Reference Change": "00B0F0"  # Bleu
+        "✅ Conform": "C6EFCE",      # Vert très clair
+        "⚠ Qty missing": "FFEB9C",   # Orange très clair
+        "❌ Missing item": "FFC7CE",  # Rouge très clair
+        "📦 Packing only": "E6D0FF",  # Violet très clair
+        "🔄 Reference Change": "B3D9FF"  # Bleu très clair
     }
     
     # Appliquer les couleurs aux lignes
@@ -131,8 +144,6 @@ def export_excel(df):
             color = color_map[remark_cell.value]
             for cell in row:
                 cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
-                # Ajouter une bordure pour mieux délimiter
-                cell.border = None
     
     # Ajuster la largeur des colonnes
     for column in ws.columns:
@@ -231,7 +242,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     
     st.markdown("---")
     
-    # 2. TABLEAU
+    # 2. TABLEAU avec bordures noires
     styled = result.style.apply(highlight_remark_column, axis=None)
     st.dataframe(styled, use_container_width=True)
     
