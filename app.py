@@ -59,7 +59,7 @@ def show_kpis(df):
     c2.metric("❌ Missing", missing)
     c3.metric("📦 Packing only", packing_only)
     c4.metric("⚠ Qty missing", qty_missing)
-    c5.metric("🔄 Ref Change", ref_change_pairs)  # Utiliser le nombre de paires
+    c5.metric("🔄 Ref Change", ref_change_pairs)
 
 # ==============================
 # PIE CHART
@@ -74,7 +74,7 @@ def generate_pie_chart(df):
     # Pour le graphique, on utilise le nombre de paires
     labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
     values = [conform, missing, packing_only, qty_missing, ref_change_pairs]
-    colors = ['#4CAF50', '#F44336', '#2196F3', '#FF9800', '#9C27B0']
+    colors = ['#4CAF50', '#F44336', '#9C27B0', '#FF9800', '#2196F3']  # Vert, Rouge, Violet, Orange, Bleu
 
     fig, ax = plt.subplots(figsize=(4, 4))
     ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90, colors=colors)
@@ -94,9 +94,9 @@ def highlight_remark_column(df):
         elif val == "❌ Missing item":
             styles.append("background-color: #F44336; color: white; font-weight: bold; border: 2px solid #C62828; border-radius: 5px;")
         elif val == "📦 Packing only":
-            styles.append("background-color: #2196F3; color: white; font-weight: bold; border: 2px solid #1565C0; border-radius: 5px;")
-        elif val == "🔄 Reference Change":
             styles.append("background-color: #9C27B0; color: white; font-weight: bold; border: 2px solid #6A1B9A; border-radius: 5px;")
+        elif val == "🔄 Reference Change":
+            styles.append("background-color: #2196F3; color: white; font-weight: bold; border: 2px solid #1565C0; border-radius: 5px;")
         else:
             styles.append("")
     
@@ -105,7 +105,7 @@ def highlight_remark_column(df):
     return style_df
 
 # ==============================
-# EXCEL EXPORT
+# EXCEL EXPORT AVEC NOUVELLES COULEURS
 # ==============================
 def export_excel(df):
     output = BytesIO()
@@ -114,19 +114,39 @@ def export_excel(df):
     output.seek(0)
     wb = load_workbook(output)
     ws = wb.active
+    
+    # Nouvelles couleurs pour Excel
     color_map = {
-        "✅ Conform": "C6EFCE",
-        "⚠ Qty missing": "FFEB9C",
-        "❌ Missing item": "FFC7CE",
-        "📦 Packing only": "BDD7EE",
-        "🔄 Reference Change": "E6D0FF"
+        "✅ Conform": "92D050",      # Vert
+        "⚠ Qty missing": "FFC000",   # Orange
+        "❌ Missing item": "FF0000",  # Rouge
+        "📦 Packing only": "9C27B0",  # Violet
+        "🔄 Reference Change": "00B0F0"  # Bleu
     }
+    
+    # Appliquer les couleurs aux lignes
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        remark = row[8].value
-        color = color_map.get(remark)
-        if color:
+        remark_cell = row[8]  # Colonne Remark (index 8)
+        if remark_cell.value in color_map:
+            color = color_map[remark_cell.value]
             for cell in row:
                 cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+                # Ajouter une bordure pour mieux délimiter
+                cell.border = None
+    
+    # Ajuster la largeur des colonnes
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 30)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
     final = BytesIO()
     wb.save(final)
     final.seek(0)
@@ -217,7 +237,7 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
     
     st.markdown("---")
     
-    # 3. GESTION CHANGEMENT REFERENCE (VERSION AMÉLIORÉE)
+    # 3. GESTION CHANGEMENT REFERENCE
     st.markdown("### 🔄 Gestion des changements de référence")
     
     # Créer trois onglets pour mieux organiser
