@@ -384,11 +384,12 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         else:
             st.info("💡 Aucun changement de référence n'a encore été appliqué")
             st.markdown("""
-            ### Comment créer un changement ?
-            1. Allez dans l'onglet **"➕ Nouveau changement"**
-            2. Sélectionnez un article **"Missing"** (ancienne référence)
-            3. Sélectionnez un article **"Packing only"** (nouvelle référence)
-            4. Cliquez sur **"Appliquer ce changement"**
+            **Comment créer un changement ?**
+            
+            1. Allez dans l'onglet '➕ Nouveau changement'
+            2. Sélectionnez un article 'Missing' (ancienne référence)
+            3. Sélectionnez un article 'Packing only' (nouvelle référence)
+            4. Cliquez sur 'Appliquer ce changement'
             """)
     
     with tab3:
@@ -397,24 +398,66 @@ if "data_ready" in st.session_state and st.session_state["data_ready"]:
         col_help1, col_help2 = st.columns(2)
         
         with col_help1:
-            st.markdown("""
-            #### 🎯 Quand utiliser cette fonction ?
-            - Lorsqu'une référence a été **changée/remplacée** dans la nouvelle version
-            - Quand un article "Missing" et un article "Packing only" correspondent au **même composant**
-            - Pour **fusionner** deux lignes qui représentent le même article
-            
-            #### 📊 Impact sur les KPIs
-            - Chaque changement de référence compte comme **+1** dans "Ref Change"
-            - Les articles deviennent **"🔄 Reference Change"** dans le tableau
-            - Le graphique circulaire est automatiquement mis à jour
-            """)
+            st.markdown("**🎯 Quand utiliser cette fonction ?**")
+            st.markdown("- Lorsqu'une référence a été changée/remplacée dans la nouvelle version")
+            st.markdown("- Quand un article 'Missing' et un article 'Packing only' correspondent au même composant")
+            st.markdown("- Pour fusionner deux lignes qui représentent le même article")
+            st.markdown("")
+            st.markdown("**📊 Impact sur les KPIs**")
+            st.markdown("- Chaque changement de référence compte comme +1 dans 'Ref Change'")
+            st.markdown("- Les articles deviennent '🔄 Reference Change' dans le tableau")
+            st.markdown("- Le graphique circulaire est automatiquement mis à jour")
         
         with col_help2:
-            st.markdown("""
-            #### 💡 Conseils
-            - Utilisez la **barre de recherche** pour trouver rapidement un article
-            - Vérifiez les **descriptions** pour confirmer la correspondance
-            - Un article ne peut pas être utilisé dans **deux changements différents**
-            - Vous pouvez **annuler** tous les changements à tout moment
-            
-            #### 🔍 Exemple
+            st.markdown("**💡 Conseils**")
+            st.markdown("- Utilisez la barre de recherche pour trouver rapidement un article")
+            st.markdown("- Vérifiez les descriptions pour confirmer la correspondance")
+            st.markdown("- Un article ne peut pas être utilisé dans deux changements différents")
+            st.markdown("- Vous pouvez annuler tous les changements à tout moment")
+            st.markdown("")
+            st.markdown("**🔍 Exemple**")
+            st.markdown("```")
+            st.markdown("Ancienne réf: RES-100 (Missing)")
+            st.markdown("Nouvelle réf: RES-200 (Packing only)")
+            st.markdown("→ Même résistance, référence changée")
+            st.markdown("```")
+        
+        st.markdown("---")
+        st.info("💬 Astuce : Les changements de référence ne modifient pas les quantités, ils permettent juste de suivre l'évolution des références.")
+    
+    st.markdown("---")
+    
+    # 4. CERCLE APRÈS TABLEAU
+    st.markdown("### 📊 KPI Distribution")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        fig = generate_pie_chart(result)
+        st.pyplot(fig)
+        
+        # PDF Export
+        img_buffer = BytesIO()
+        fig.savefig(img_buffer, format="png")
+        img_buffer.seek(0)
+        pdf_buffer = BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            tmp.write(img_buffer.getvalue())
+            tmp_path = tmp.name
+        elements = [RLImage(tmp_path, width=300, height=300)]
+        doc.build(elements)
+        pdf_buffer.seek(0)
+        st.download_button(
+            "📄 Download KPI Chart (PDF)",
+            data=pdf_buffer,
+            file_name="KPI_Chart.pdf",
+            mime="application/pdf"
+        )
+    
+    # EXCEL DOWNLOAD
+    excel_file = export_excel(result)
+    st.download_button(
+        "📥 Download Excel Result",
+        data=excel_file,
+        file_name="BOM_vs_Packing.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
