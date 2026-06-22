@@ -37,7 +37,7 @@ st.markdown("""
     }
 
     /* ===== TITRE SHIMMER QUI DÉFILE ===== */
-    .shimmer-text {
+    .shimmer-title {
         background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b, #ff1493);
         background-size: 300% 100%;
         -webkit-background-clip: text;
@@ -48,6 +48,8 @@ st.markdown("""
         font-weight: 700 !important;
         display: inline-block !important;
         padding: 10px !important;
+        text-align: center !important;
+        width: 100% !important;
     }
 
     @keyframes shimmer {
@@ -129,7 +131,7 @@ st.markdown("""
         70% { transform: scale(1); }
     }
 
-    /* ===== SIDEBAR AVATAR ===== */
+    /* ===== SIDEBAR AVATAR - Monte et descend ===== */
     .sidebar-avatar {
         font-size: 70px !important;
         text-align: center !important;
@@ -138,7 +140,7 @@ st.markdown("""
         padding: 15px !important;
     }
 
-    /* ===== SIDEBAR ICONS PULSE EN DÉCALÉ ===== */
+    /* ===== SIDEBAR ICONS - Pulse en décalé ===== */
     .sidebar-icons {
         text-align: center !important;
         padding: 10px !important;
@@ -345,7 +347,7 @@ st.markdown("""
         100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
     }
 
-    /* ===== TRANSITIONS SLIDES ===== */
+    /* ===== TRANSITIONS SLIDES - Fondu + mise à l'échelle ===== */
     .slide-transition {
         animation: slideFadeScale 0.6s ease-out !important;
     }
@@ -815,6 +817,4 @@ def display_presentation(course):
 
     course_key = course["id"]
 
-    if 'pdf_images' not in st.session_state or \
-       st.session_state.get('current_pdf_key') != course_key:
-        with
+    if 'pdf_images' not in st.session
