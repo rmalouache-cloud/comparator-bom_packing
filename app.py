@@ -250,12 +250,6 @@ st.markdown("""
         text-align: center !important;
         border: 2px solid #ffc0cb !important;
         transition: all 0.3s ease !important;
-        animation: statFadeIn 0.8s ease-out !important;
-    }
-
-    @keyframes statFadeIn {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
     }
 
     .stat-card:hover {
@@ -275,141 +269,47 @@ st.markdown("""
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.15); }
     }
-
-    /* ===== COURSE CARDS ===== */
-    .course-card {
-        background: white !important;
-        border-radius: 20px !important;
-        padding: 20px !important;
-        margin: 10px 0 !important;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
-        border: 1px solid #ffc0cb !important;
-        transition: all 0.3s ease !important;
-        animation: cardSlideIn 0.6s ease-out !important;
-    }
-
-    @keyframes cardSlideIn {
-        from { opacity: 0; transform: translateX(-30px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-
-    .course-card:hover {
-        transform: translateY(-10px) !important;
-        box-shadow: 0 15px 40px rgba(255,20,147,0.25) !important;
-        border-color: #ff69b4 !important;
-    }
-
-    /* ===== BALLONS ===== */
-    .balloons-container {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        pointer-events: none !important;
-        z-index: 9999 !important;
-        overflow: hidden !important;
-    }
-
-    @keyframes balloonFloat {
-        0% { transform: translateY(100vh) rotate(-5deg) scale(0.5); opacity: 1; }
-        100% { transform: translateY(-150px) rotate(5deg) scale(1); opacity: 0; }
-    }
-
-    @keyframes balloonSway {
-        0%, 100% { margin-left: 0px; }
-        25% { margin-left: 30px; }
-        75% { margin-left: -30px; }
-    }
-
-    .balloon {
-        position: absolute !important;
-        bottom: -100px !important;
-        font-size: 55px !important;
-        animation: balloonFloat 4.5s ease-out forwards,
-                   balloonSway 1.5s ease-in-out infinite !important;
-    }
-
-    /* ===== CONFETTI ===== */
-    .confetti-piece {
-        position: fixed !important;
-        width: 12px !important;
-        height: 12px !important;
-        top: -10px !important;
-        opacity: 0 !important;
-        animation: confettiFall 3.5s ease-in forwards !important;
-        z-index: 10000 !important;
-        pointer-events: none !important;
-    }
-
-    @keyframes confettiFall {
-        0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
-        100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
-    }
-
-    /* ===== TRANSITIONS SLIDES - Fondu + mise à l'échelle ===== */
-    .slide-transition {
-        animation: slideFadeScale 0.6s ease-out !important;
-    }
-
-    @keyframes slideFadeScale {
-        0% { opacity: 0; transform: scale(0.9); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-
-    /* ===== UPLOAD ZONE ===== */
-    .stFileUploader {
-        border: 3px dashed #ff69b4 !important;
-        border-radius: 20px !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .stFileUploader:hover {
-        border-color: #ff1493 !important;
-        background: rgba(255,105,180,0.05) !important;
-        transform: scale(1.02) !important;
-    }
-
-    /* ===== EXPANDER ===== */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #fff0f5, white) !important;
-        border-radius: 15px !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .streamlit-expanderHeader:hover {
-        transform: translateX(8px) !important;
-        color: #ff1493 !important;
-    }
-
-    /* ===== FADE UTILITIES ===== */
-    .fade-in { animation: fadeInUp 0.6s ease-out !important; }
-    .fade-left { animation: fadeInLeft 0.6s ease-out !important; }
-    .fade-right { animation: fadeInRight 0.6s ease-out !important; }
-
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeInLeft {
-        from { opacity: 0; transform: translateX(-30px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-
-    @keyframes fadeInRight {
-        from { opacity: 0; transform: translateX(30px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-
-    /* Classes d'animation */
-    .floating { animation: floatAnim 3s ease-in-out infinite !important; }
-    .pulsing { animation: pulseAnim 2s ease-in-out infinite !important; }
-    .bouncing { animation: bounceAnim 1.5s ease-in-out infinite !important; }
-    .heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite !important; }
-    .spinning { animation: spinAnim 4s linear infinite !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# ==============================
+# AFFICHAGE DU TITRE ET DE L'AVATAR AVEC LEURS CLASSES CSS
+# ==============================
+# Affiche le Titre shimmer animé !
+st.markdown('<p class="shimmer-title">✨ English Teacher\'s Platform ✨</p>', unsafe_allow_html=True)
+
+# Affiche le sous-titre qui pulse !
+st.markdown('<div style="text-align:center;"><p class="subtitle">🌸 Interactive slides, smart course organizer and student milestone game rewards! 🌸</p></div>', unsafe_allow_html=True)
+
+# Affiche la série de logos avec leurs animations correspondantes (Flotter, Rebondir, Tourner...) !
+st.markdown("""
+<div class="logo-container">
+    <span class="logo-item logo-float">📖</span>
+    <span class="logo-item logo-bounce">📝</span>
+    <span class="logo-item logo-oscillate">🎓</span>
+    <span class="logo-item logo-spin">⭐</span>
+    <span class="logo-item logo-heartbeat">💖</span>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ==============================
+# CONSTRUCTIONS DE LA SIDEBAR AVEC SES ANIMATIONS
+# ==============================
+# Ajoute l'avatar rebondissant et les icônes pulsatiles dans la sidebar
+st.sidebar.markdown('<div class="sidebar-avatar">🌸</div>', unsafe_allow_html=True)
+st.sidebar.markdown('<div class="sidebar-title">SARAH\'S CLASSROOM</div>', unsafe_allow_html=True)
+
+st.sidebar.markdown("""
+<div class="sidebar-icons">
+    <span class="sidebar-icon icon-pulse-1">🌟</span>
+    <span class="sidebar-icon icon-pulse-2">📚</span>
+    <span class="sidebar-icon icon-pulse-3">🏆</span>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown('---')
+
 
 # ==============================
 # BALLONS ANIMATION
@@ -427,9 +327,6 @@ def show_balloons_animation():
         <div class="balloon" style="left:75%; animation-delay:0.2s; animation-duration:4.3s;">💖</div>
         <div class="balloon" style="left:85%; animation-delay:0.3s; animation-duration:3.7s;">🎈</div>
         <div class="balloon" style="left:92%; animation-delay:0.1s; animation-duration:4.0s;">✨</div>
-        <div class="balloon" style="left:10%; animation-delay:0.5s; animation-duration:3.5s;">🎊</div>
-        <div class="balloon" style="left:50%; animation-delay:0.6s; animation-duration:4.5s;">🎉</div>
-        <div class="balloon" style="left:80%; animation-delay:0.4s; animation-duration:3.8s;">💕</div>
     </div>
     <script>
         setTimeout(function() {
@@ -817,4 +714,22 @@ def display_presentation(course):
 
     course_key = course["id"]
 
-    if 'pdf_images' not in st.session
+    # Initialise les images PDF dans la session
+    if 'pdf_images' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
+        with st.spinner("⏳ Loading deck slides..."):
+            try:
+                pdf_bytes = download_pdf(course["storage_path"])
+                st.session_state['pdf_images'] = pdf_bytes_to_base64_images(pdf_bytes)
+                st.session_state['current_pdf_key'] = course_key
+                st.session_state['current_page'] = 0
+            except Exception as e:
+                st.error(f"❌ Failed to render PDF slides: {e}")
+                return
+
+    images_b64 = st.session_state['pdf_images']
+    total_pages = len(images_b64)
+    current_page = st.session_state.get('current_page', 0)
+
+    # Affiche le viewer HTML interactif avec support Plein Écran, Confettis et touches fléchées
+    html_viewer = create_html_viewer(images_b64, current_page, total_pages, course['title'])
+    st.components.v1.html(html_viewer, height=750, scrolling=True)
