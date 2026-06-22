@@ -19,15 +19,15 @@ st.set_page_config(
 )
 
 # ==============================
-# CUSTOM CSS + ANIMATIONS (Version corrigée)
+# CUSTOM CSS + ANIMATIONS (Version qui fonctionne !)
 # ==============================
 st.markdown("""
 <style>
-    /* Reset et fond */
+    /* Force les animations à s'afficher */
     .stApp {
         background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%);
         background-size: 400% 400%;
-        animation: gradientShift 8s ease infinite;
+        animation: gradientShift 8s ease infinite !important;
     }
 
     @keyframes gradientShift {
@@ -36,19 +36,18 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* ===== TITRE SHIMMER ===== */
-    .shimmer-title {
-        font-size: 2.8rem !important;
-        font-weight: 700;
-        background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b);
+    /* ===== TITRE SHIMMER QUI DÉFILE ===== */
+    .shimmer-text {
+        background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b, #ff1493);
         background-size: 300% 100%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        animation: shimmer 3s linear infinite;
-        display: inline-block;
-        text-align: center;
-        padding: 10px;
+        animation: shimmer 2s linear infinite !important;
+        font-size: 2.8rem !important;
+        font-weight: 700 !important;
+        display: inline-block !important;
+        padding: 10px !important;
     }
 
     @keyframes shimmer {
@@ -58,36 +57,48 @@ st.markdown("""
 
     /* ===== LOGOS AVEC LEURS PROPRES ANIMATIONS ===== */
     .logo-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 30px;
-        margin: 15px 0 25px 0;
-        flex-wrap: wrap;
-        padding: 15px;
-        background: rgba(255,255,255,0.3);
-        border-radius: 50px;
-        backdrop-filter: blur(5px);
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 30px !important;
+        margin: 15px 0 25px 0 !important;
+        flex-wrap: wrap !important;
+        padding: 15px !important;
+        background: rgba(255,255,255,0.3) !important;
+        border-radius: 50px !important;
     }
 
     .logo-item {
-        font-size: 50px;
-        display: inline-block;
-        cursor: default;
-        transition: transform 0.3s ease;
-        padding: 5px;
+        font-size: 50px !important;
+        display: inline-block !important;
+        padding: 5px !important;
+        transition: transform 0.3s ease !important;
     }
 
     .logo-item:hover {
         transform: scale(1.5) rotate(15deg) !important;
     }
 
-    /* Chaque logo a sa propre animation */
-    .logo-float { animation: floatAnim 2.5s ease-in-out infinite; }
-    .logo-bounce { animation: bounceAnim 2s ease-in-out infinite; }
-    .logo-oscillate { animation: oscillateAnim 1.8s ease-in-out infinite; }
-    .logo-spin { animation: spinAnim 4s linear infinite; }
-    .logo-heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite; }
+    /* 📖 flotter */
+    .logo-float {
+        animation: floatAnim 2.5s ease-in-out infinite !important;
+    }
+    /* 📝 rebondir */
+    .logo-bounce {
+        animation: bounceAnim 2s ease-in-out infinite !important;
+    }
+    /* 🎓 osciller */
+    .logo-oscillate {
+        animation: oscillateAnim 1.8s ease-in-out infinite !important;
+    }
+    /* ⭐ tourner */
+    .logo-spin {
+        animation: spinAnim 4s linear infinite !important;
+    }
+    /* 💖 battre comme un cœur */
+    .logo-heartbeat {
+        animation: heartbeatAnim 1.5s ease-in-out infinite !important;
+    }
 
     @keyframes floatAnim {
         0%, 100% { transform: translateY(0px); }
@@ -118,53 +129,73 @@ st.markdown("""
         70% { transform: scale(1); }
     }
 
-    /* ===== SIDEBAR ===== */
+    /* ===== SIDEBAR AVATAR ===== */
     .sidebar-avatar {
-        font-size: 70px;
-        text-align: center;
-        animation: floatAnim 3s ease-in-out infinite;
-        display: block;
-        padding: 15px;
+        font-size: 70px !important;
+        text-align: center !important;
+        animation: floatAnim 3s ease-in-out infinite !important;
+        display: block !important;
+        padding: 15px !important;
     }
 
+    /* ===== SIDEBAR ICONS PULSE EN DÉCALÉ ===== */
     .sidebar-icons {
-        text-align: center;
-        padding: 10px;
+        text-align: center !important;
+        padding: 10px !important;
     }
 
     .sidebar-icon {
-        font-size: 30px;
-        display: inline-block;
-        margin: 0 8px;
+        font-size: 30px !important;
+        display: inline-block !important;
+        margin: 0 8px !important;
     }
 
-    .icon-pulse-1 { animation: pulseAnim 2s ease-in-out infinite; }
-    .icon-pulse-2 { animation: pulseAnim 2.3s ease-in-out infinite 0.3s; }
-    .icon-pulse-3 { animation: pulseAnim 2.6s ease-in-out infinite 0.6s; }
+    .icon-pulse-1 { 
+        animation: pulseAnim 2s ease-in-out infinite !important; 
+    }
+    .icon-pulse-2 { 
+        animation: pulseAnim 2.3s ease-in-out infinite 0.3s !important; 
+    }
+    .icon-pulse-3 { 
+        animation: pulseAnim 2.6s ease-in-out infinite 0.6s !important; 
+    }
 
     @keyframes pulseAnim {
         0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.3); }
+        50% { transform: scale(1.4); }
     }
 
+    /* ===== SIDEBAR TITLE RAINBOW ===== */
     .sidebar-title {
-        text-align: center;
-        font-weight: 700;
-        font-size: 1.3rem;
-        animation: rainbowAnim 4s ease-in-out infinite;
-        padding: 10px;
-        background: linear-gradient(45deg, #ff69b4, #ff1493);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        text-align: center !important;
+        font-weight: 700 !important;
+        font-size: 1.3rem !important;
+        animation: rainbowAnim 3s linear infinite !important;
+        padding: 10px !important;
     }
 
     @keyframes rainbowAnim {
-        0% { filter: hue-rotate(0deg); }
-        100% { filter: hue-rotate(360deg); }
+        0% { color: #ff69b4; }
+        25% { color: #ff1493; }
+        50% { color: #c2185b; }
+        75% { color: #ff69b4; }
+        100% { color: #ff1493; }
     }
 
-    /* ===== BOUTONS ===== */
+    /* ===== SUBTITLE PULSE ===== */
+    .subtitle {
+        color: #c2185b !important;
+        font-size: 18px !important;
+        animation: subtitlePulse 2s ease-in-out infinite !important;
+        display: inline-block !important;
+    }
+
+    @keyframes subtitlePulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.05); }
+    }
+
+    /* ===== BOUTONS GLOW ===== */
     .stButton > button {
         background: linear-gradient(45deg, #ff69b4, #ff1493) !important;
         color: white !important;
@@ -178,49 +209,25 @@ st.markdown("""
 
     @keyframes btnGlow {
         0%, 100% { box-shadow: 0 4px 15px rgba(255,20,147,0.3); }
-        50% { box-shadow: 0 4px 30px rgba(255,20,147,0.6); }
+        50% { box-shadow: 0 4px 35px rgba(255,20,147,0.7); }
     }
 
     .stButton > button:hover {
         transform: scale(1.08) translateY(-3px) !important;
-        box-shadow: 0 8px 30px rgba(255,20,147,0.7) !important;
-    }
-
-    /* ===== COURSE CARDS ===== */
-    .course-card {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 10px 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        border: 1px solid #ffc0cb;
-        transition: all 0.3s ease;
-        animation: cardSlideIn 0.6s ease-out;
-    }
-
-    @keyframes cardSlideIn {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .course-card:hover {
-        transform: translateY(-10px) !important;
-        box-shadow: 0 15px 40px rgba(255,20,147,0.25) !important;
-        border-color: #ff69b4 !important;
     }
 
     /* ===== SUCCESS BANNER ===== */
     .success-banner {
-        background: linear-gradient(135deg, #ff69b4, #ff1493);
-        color: white;
-        border-radius: 20px;
-        padding: 25px;
-        text-align: center;
-        font-size: 1.4rem;
-        font-weight: bold;
-        animation: bannerIn 0.5s ease-out, bannerPulse 2s ease-in-out infinite 0.5s;
-        box-shadow: 0 10px 30px rgba(255,20,147,0.4);
-        margin: 15px 0;
+        background: linear-gradient(135deg, #ff69b4, #ff1493) !important;
+        color: white !important;
+        border-radius: 20px !important;
+        padding: 25px !important;
+        text-align: center !important;
+        font-size: 1.4rem !important;
+        font-weight: bold !important;
+        animation: bannerIn 0.5s ease-out, bannerPulse 2s ease-in-out infinite 0.5s !important;
+        box-shadow: 0 10px 30px rgba(255,20,147,0.4) !important;
+        margin: 15px 0 !important;
     }
 
     @keyframes bannerIn {
@@ -230,66 +237,76 @@ st.markdown("""
 
     @keyframes bannerPulse {
         0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.02); }
+        50% { transform: scale(1.03); }
     }
 
     /* ===== STAT CARDS ===== */
     .stat-card {
-        background: linear-gradient(135deg, #fff0f5, white);
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        border: 2px solid #ffc0cb;
-        transition: all 0.3s ease;
-        animation: statFadeIn 0.8s ease-out;
+        background: linear-gradient(135deg, #fff0f5, white) !important;
+        border-radius: 15px !important;
+        padding: 20px !important;
+        text-align: center !important;
+        border: 2px solid #ffc0cb !important;
+        transition: all 0.3s ease !important;
+        animation: statFadeIn 0.8s ease-out !important;
     }
 
     @keyframes statFadeIn {
-        from { opacity: 0; transform: translateY(20px); }
+        from { opacity: 0; transform: translateY(30px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
+        transform: translateY(-8px) !important;
+        box-shadow: 0 10px 30px rgba(255,20,147,0.2) !important;
     }
 
     .stat-number {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #ff1493;
-        animation: numberPulse 2s ease-in-out infinite;
-        display: inline-block;
+        font-size: 2.2rem !important;
+        font-weight: 700 !important;
+        color: #ff1493 !important;
+        animation: numberPulse 2s ease-in-out infinite !important;
+        display: inline-block !important;
     }
 
     @keyframes numberPulse {
         0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
+        50% { transform: scale(1.15); }
     }
 
-    /* ===== SUBTITLE ===== */
-    .subtitle {
-        color: #c2185b;
-        font-size: 18px;
-        animation: subtitlePulse 3s ease-in-out infinite;
-        display: inline-block;
+    /* ===== COURSE CARDS ===== */
+    .course-card {
+        background: white !important;
+        border-radius: 20px !important;
+        padding: 20px !important;
+        margin: 10px 0 !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
+        border: 1px solid #ffc0cb !important;
+        transition: all 0.3s ease !important;
+        animation: cardSlideIn 0.6s ease-out !important;
     }
 
-    @keyframes subtitlePulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
+    @keyframes cardSlideIn {
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .course-card:hover {
+        transform: translateY(-10px) !important;
+        box-shadow: 0 15px 40px rgba(255,20,147,0.25) !important;
+        border-color: #ff69b4 !important;
     }
 
     /* ===== BALLONS ===== */
     .balloons-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 9999;
-        overflow: hidden;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        pointer-events: none !important;
+        z-index: 9999 !important;
+        overflow: hidden !important;
     }
 
     @keyframes balloonFloat {
@@ -299,28 +316,28 @@ st.markdown("""
 
     @keyframes balloonSway {
         0%, 100% { margin-left: 0px; }
-        25% { margin-left: 25px; }
-        75% { margin-left: -25px; }
+        25% { margin-left: 30px; }
+        75% { margin-left: -30px; }
     }
 
     .balloon {
-        position: absolute;
-        bottom: -100px;
-        font-size: 55px;
+        position: absolute !important;
+        bottom: -100px !important;
+        font-size: 55px !important;
         animation: balloonFloat 4.5s ease-out forwards,
-                   balloonSway 1.5s ease-in-out infinite;
+                   balloonSway 1.5s ease-in-out infinite !important;
     }
 
     /* ===== CONFETTI ===== */
     .confetti-piece {
-        position: fixed;
-        width: 12px;
-        height: 12px;
-        top: -10px;
-        opacity: 0;
-        animation: confettiFall 3.5s ease-in forwards;
-        z-index: 10000;
-        pointer-events: none;
+        position: fixed !important;
+        width: 12px !important;
+        height: 12px !important;
+        top: -10px !important;
+        opacity: 0 !important;
+        animation: confettiFall 3.5s ease-in forwards !important;
+        z-index: 10000 !important;
+        pointer-events: none !important;
     }
 
     @keyframes confettiFall {
@@ -330,11 +347,11 @@ st.markdown("""
 
     /* ===== TRANSITIONS SLIDES ===== */
     .slide-transition {
-        animation: slideFadeScale 0.6s ease-out;
+        animation: slideFadeScale 0.6s ease-out !important;
     }
 
     @keyframes slideFadeScale {
-        0% { opacity: 0; transform: scale(0.92); }
+        0% { opacity: 0; transform: scale(0.9); }
         100% { opacity: 1; transform: scale(1); }
     }
 
@@ -351,12 +368,6 @@ st.markdown("""
         transform: scale(1.02) !important;
     }
 
-    /* ===== PROGRESS BAR ===== */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #ff69b4, #ff1493) !important;
-        border-radius: 10px !important;
-    }
-
     /* ===== EXPANDER ===== */
     .streamlit-expanderHeader {
         background: linear-gradient(135deg, #fff0f5, white) !important;
@@ -369,10 +380,10 @@ st.markdown("""
         color: #ff1493 !important;
     }
 
-    /* ===== AUTRES ANIMATIONS UTILITAIRES ===== */
-    .fade-in { animation: fadeInUp 0.6s ease-out; }
-    .fade-left { animation: fadeInLeft 0.6s ease-out; }
-    .fade-right { animation: fadeInRight 0.6s ease-out; }
+    /* ===== FADE UTILITIES ===== */
+    .fade-in { animation: fadeInUp 0.6s ease-out !important; }
+    .fade-left { animation: fadeInLeft 0.6s ease-out !important; }
+    .fade-right { animation: fadeInRight 0.6s ease-out !important; }
 
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(30px); }
@@ -389,11 +400,12 @@ st.markdown("""
         to { opacity: 1; transform: translateX(0); }
     }
 
-    .floating { animation: floatAnim 3s ease-in-out infinite; }
-    .pulsing { animation: pulseAnim 2s ease-in-out infinite; }
-    .bouncing { animation: bounceAnim 1.5s ease-in-out infinite; }
-    .heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite; }
-    .spinning { animation: spinAnim 4s linear infinite; }
+    /* Classes d'animation */
+    .floating { animation: floatAnim 3s ease-in-out infinite !important; }
+    .pulsing { animation: pulseAnim 2s ease-in-out infinite !important; }
+    .bouncing { animation: bounceAnim 1.5s ease-in-out infinite !important; }
+    .heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite !important; }
+    .spinning { animation: spinAnim 4s linear infinite !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -805,28 +817,4 @@ def display_presentation(course):
 
     if 'pdf_images' not in st.session_state or \
        st.session_state.get('current_pdf_key') != course_key:
-        with st.spinner("🔄 Chargement du cours…"):
-            try:
-                pdf_bytes  = download_pdf(course["storage_path"])
-                images_b64 = pdf_bytes_to_base64_images(pdf_bytes)
-                st.session_state.pdf_images      = images_b64
-                st.session_state.current_pdf_key = course_key
-                st.session_state.current_page    = 0
-            except Exception as e:
-                st.error(f"❌ Impossible d'afficher ce PDF : {e}")
-                return
-
-    images_base64 = st.session_state.pdf_images
-    total_pages   = len(images_base64)
-
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = 0
-
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col2:
-        st.markdown(
-            f"<h3 style='text-align:center;color:#c2185b;'>"
-            f"📄 Page {st.session_state.current_page + 1} / {total_pages}</h3>",
-            unsafe_allow_html=True
-        )
-        st.progress((st.session_state
+        with
