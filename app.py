@@ -19,51 +19,174 @@ st.set_page_config(
 )
 
 # ==============================
-# CUSTOM CSS + ANIMATIONS
+# CUSTOM CSS + ANIMATIONS (Version corrigée)
 # ==============================
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-
-    /* Fond header - dégradé rose qui change en boucle */
+    /* Reset et fond */
     .stApp {
         background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%);
         background-size: 400% 400%;
         animation: gradientShift 8s ease infinite;
-        font-family: 'Poppins', sans-serif;
     }
 
     @keyframes gradientShift {
-        0%   { background-position: 0% 50%; }
-        50%  { background-position: 100% 50%; }
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
 
-    h1, h2, h3 { color: #c2185b !important; }
-
-    /* Boutons animés */
-    .stButton > button {
-        background: linear-gradient(45deg, #ff69b4, #ff1493);
-        color: white;
-        border-radius: 25px;
-        border: none;
-        padding: 12px 25px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(255,20,147,0.3);
-        animation: btnPulse 2s ease-in-out infinite;
+    /* ===== TITRE SHIMMER ===== */
+    .shimmer-title {
+        font-size: 2.8rem !important;
+        font-weight: 700;
+        background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b);
+        background-size: 300% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 3s linear infinite;
+        display: inline-block;
+        text-align: center;
+        padding: 10px;
     }
-    @keyframes btnPulse {
+
+    @keyframes shimmer {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 300% 50%; }
+    }
+
+    /* ===== LOGOS AVEC LEURS PROPRES ANIMATIONS ===== */
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 30px;
+        margin: 15px 0 25px 0;
+        flex-wrap: wrap;
+        padding: 15px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 50px;
+        backdrop-filter: blur(5px);
+    }
+
+    .logo-item {
+        font-size: 50px;
+        display: inline-block;
+        cursor: default;
+        transition: transform 0.3s ease;
+        padding: 5px;
+    }
+
+    .logo-item:hover {
+        transform: scale(1.5) rotate(15deg) !important;
+    }
+
+    /* Chaque logo a sa propre animation */
+    .logo-float { animation: floatAnim 2.5s ease-in-out infinite; }
+    .logo-bounce { animation: bounceAnim 2s ease-in-out infinite; }
+    .logo-oscillate { animation: oscillateAnim 1.8s ease-in-out infinite; }
+    .logo-spin { animation: spinAnim 4s linear infinite; }
+    .logo-heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite; }
+
+    @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+
+    @keyframes bounceAnim {
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(-25px); }
+        75% { transform: translateY(-10px); }
+    }
+
+    @keyframes oscillateAnim {
+        0%, 100% { transform: rotate(-10deg); }
+        50% { transform: rotate(10deg); }
+    }
+
+    @keyframes spinAnim {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes heartbeatAnim {
+        0%, 100% { transform: scale(1); }
+        14% { transform: scale(1.4); }
+        28% { transform: scale(1); }
+        42% { transform: scale(1.4); }
+        70% { transform: scale(1); }
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar-avatar {
+        font-size: 70px;
+        text-align: center;
+        animation: floatAnim 3s ease-in-out infinite;
+        display: block;
+        padding: 15px;
+    }
+
+    .sidebar-icons {
+        text-align: center;
+        padding: 10px;
+    }
+
+    .sidebar-icon {
+        font-size: 30px;
+        display: inline-block;
+        margin: 0 8px;
+    }
+
+    .icon-pulse-1 { animation: pulseAnim 2s ease-in-out infinite; }
+    .icon-pulse-2 { animation: pulseAnim 2.3s ease-in-out infinite 0.3s; }
+    .icon-pulse-3 { animation: pulseAnim 2.6s ease-in-out infinite 0.6s; }
+
+    @keyframes pulseAnim {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+    }
+
+    .sidebar-title {
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.3rem;
+        animation: rainbowAnim 4s ease-in-out infinite;
+        padding: 10px;
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    @keyframes rainbowAnim {
+        0% { filter: hue-rotate(0deg); }
+        100% { filter: hue-rotate(360deg); }
+    }
+
+    /* ===== BOUTONS ===== */
+    .stButton > button {
+        background: linear-gradient(45deg, #ff69b4, #ff1493) !important;
+        color: white !important;
+        border-radius: 25px !important;
+        border: none !important;
+        padding: 12px 25px !important;
+        font-weight: bold !important;
+        transition: all 0.3s ease !important;
+        animation: btnGlow 2s ease-in-out infinite !important;
+    }
+
+    @keyframes btnGlow {
         0%, 100% { box-shadow: 0 4px 15px rgba(255,20,147,0.3); }
         50% { box-shadow: 0 4px 30px rgba(255,20,147,0.6); }
     }
+
     .stButton > button:hover {
         transform: scale(1.08) translateY(-3px) !important;
-        box-shadow: 0 8px 25px rgba(255,20,147,0.5) !important;
+        box-shadow: 0 8px 30px rgba(255,20,147,0.7) !important;
     }
-    .stButton > button:active { transform: scale(0.97) !important; }
 
-    /* Course cards */
+    /* ===== COURSE CARDS ===== */
     .course-card {
         background: white;
         border-radius: 20px;
@@ -72,157 +195,92 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
         transition: all 0.3s ease;
-        animation: cardFadeIn 0.6s ease-out;
+        animation: cardSlideIn 0.6s ease-out;
     }
-    @keyframes cardFadeIn {
+
+    @keyframes cardSlideIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .course-card:hover {
+        transform: translateY(-10px) !important;
+        box-shadow: 0 15px 40px rgba(255,20,147,0.25) !important;
+        border-color: #ff69b4 !important;
+    }
+
+    /* ===== SUCCESS BANNER ===== */
+    .success-banner {
+        background: linear-gradient(135deg, #ff69b4, #ff1493);
+        color: white;
+        border-radius: 20px;
+        padding: 25px;
+        text-align: center;
+        font-size: 1.4rem;
+        font-weight: bold;
+        animation: bannerIn 0.5s ease-out, bannerPulse 2s ease-in-out infinite 0.5s;
+        box-shadow: 0 10px 30px rgba(255,20,147,0.4);
+        margin: 15px 0;
+    }
+
+    @keyframes bannerIn {
+        from { opacity: 0; transform: scale(0.8) translateY(30px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @keyframes bannerPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+
+    /* ===== STAT CARDS ===== */
+    .stat-card {
+        background: linear-gradient(135deg, #fff0f5, white);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 2px solid #ffc0cb;
+        transition: all 0.3s ease;
+        animation: statFadeIn 0.8s ease-out;
+    }
+
+    @keyframes statFadeIn {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    .course-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 15px 35px rgba(255,20,147,0.2);
-        border-color: #ff69b4;
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
     }
 
-    /* Animations pour les logos */
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-15px); }
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #ff1493;
+        animation: numberPulse 2s ease-in-out infinite;
+        display: inline-block;
     }
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        25% { transform: translateY(-20px); }
-        75% { transform: translateY(-10px); }
-    }
-    @keyframes wiggle {
-        0%, 100% { transform: rotate(0deg); }
-        25% { transform: rotate(-15deg); }
-        75% { transform: rotate(15deg); }
-    }
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-    @keyframes heartbeat {
-        0%, 100% { transform: scale(1); }
-        14% { transform: scale(1.4); }
-        28% { transform: scale(1); }
-        42% { transform: scale(1.4); }
-        70% { transform: scale(1); }
-    }
-    @keyframes pulse {
+
+    @keyframes numberPulse {
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.1); }
     }
-    @keyframes oscillate {
-        0%, 100% { transform: rotate(-8deg); }
-        50% { transform: rotate(8deg); }
-    }
 
-    /* Header logos animés - Chacun sa propre animation */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 25px;
-        margin: 10px 0 20px 0;
-        flex-wrap: wrap;
-        padding: 10px;
-    }
-    .logo-item {
-        font-size: 45px;
-        display: inline-block;
-        cursor: default;
-        transition: transform 0.3s ease;
-        padding: 5px;
-    }
-    .logo-item:hover { transform: scale(1.4) rotate(15deg) !important; }
-    .logo-1 { animation: float 2.5s ease-in-out infinite; }       /* 📖 flotter */
-    .logo-2 { animation: bounce 2s ease-in-out infinite; }        /* 📝 rebondir */
-    .logo-3 { animation: oscillate 1.8s ease-in-out infinite; }   /* 🎓 osciller */
-    .logo-4 { animation: spin 4s linear infinite; }               /* ⭐ tourner */
-    .logo-5 { animation: heartbeat 1.5s ease-in-out infinite; }   /* 💖 battre */
-
-    /* Titre animé avec dégradé défilant (shimmer) */
-    .main-title {
-        text-align: center;
-        animation: fadeInDown 0.8s ease-out;
-    }
-    @keyframes fadeInDown {
-        from { opacity: 0; transform: translateY(-30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .main-title h1 {
-        background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b);
-        background-size: 300% 100%;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 2.8rem !important;
-        font-weight: 700;
-        animation: shimmer 3s linear infinite;
-        display: inline-block;
-        padding: 10px;
-    }
-    @keyframes shimmer {
-        0% { background-position: 0% 50%; }
-        100% { background-position: 300% 50%; }
-    }
+    /* ===== SUBTITLE ===== */
     .subtitle {
         color: #c2185b;
         font-size: 18px;
-        animation: pulse 3s ease-in-out infinite;
+        animation: subtitlePulse 3s ease-in-out infinite;
         display: inline-block;
     }
 
-    /* Sidebar Avatar - Monte et descend doucement */
-    .sidebar-avatar {
-        font-size: 65px;
-        text-align: center;
-        animation: float 3s ease-in-out infinite;
-        display: block;
-        padding: 10px;
-    }
-    /* Sidebar logos - Pulse en décalé */
-    .sidebar-icon-1 { 
-        animation: pulse 2s ease-in-out infinite; 
-        display: inline-block; 
-        margin: 0 5px;
-        font-size: 28px;
-    }
-    .sidebar-icon-2 { 
-        animation: pulse 2.3s ease-in-out infinite 0.3s; 
-        display: inline-block; 
-        margin: 0 5px;
-        font-size: 28px;
-    }
-    .sidebar-icon-3 { 
-        animation: pulse 2.6s ease-in-out infinite 0.6s; 
-        display: inline-block; 
-        margin: 0 5px;
-        font-size: 28px;
+    @keyframes subtitlePulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
     }
 
-    .sidebar-title {
-        text-align: center;
-        background: linear-gradient(45deg, #ff69b4, #ff1493);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 700;
-        font-size: 1.3rem;
-        animation: rainbow 4s ease-in-out infinite;
-        padding: 10px;
-    }
-    @keyframes rainbow {
-        0% { color: #ff69b4; }
-        25% { color: #ff1493; }
-        50% { color: #c2185b; }
-        75% { color: #ff69b4; }
-        100% { color: #ff1493; }
-    }
-
-    /* Ballons */
+    /* ===== BALLONS ===== */
     .balloons-container {
         position: fixed;
         bottom: 0;
@@ -233,15 +291,18 @@ st.markdown("""
         z-index: 9999;
         overflow: hidden;
     }
+
     @keyframes balloonFloat {
         0% { transform: translateY(100vh) rotate(-5deg) scale(0.5); opacity: 1; }
         100% { transform: translateY(-150px) rotate(5deg) scale(1); opacity: 0; }
     }
+
     @keyframes balloonSway {
         0%, 100% { margin-left: 0px; }
-        25% { margin-left: 20px; }
-        75% { margin-left: -20px; }
+        25% { margin-left: 25px; }
+        75% { margin-left: -25px; }
     }
+
     .balloon {
         position: absolute;
         bottom: -100px;
@@ -250,56 +311,7 @@ st.markdown("""
                    balloonSway 1.5s ease-in-out infinite;
     }
 
-    /* Success banner animé */
-    .success-banner {
-        background: linear-gradient(135deg, #ff69b4, #ff1493);
-        color: white;
-        border-radius: 20px;
-        padding: 25px;
-        text-align: center;
-        font-size: 1.4rem;
-        font-weight: bold;
-        animation: fadeInUp 0.5s ease-out, pulse 2s ease-in-out infinite 0.5s;
-        box-shadow: 0 10px 30px rgba(255,20,147,0.4);
-        margin: 15px 0;
-    }
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Stat cards */
-    .stat-card {
-        background: linear-gradient(135deg, #fff0f5, white);
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        border: 2px solid #ffc0cb;
-        animation: fadeInUp 0.8s ease-out;
-        transition: all 0.3s ease;
-    }
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
-    }
-    .stat-number {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #ff1493;
-        animation: pulse 2s ease-in-out infinite;
-        display: inline-block;
-    }
-
-    /* Transitions slides - fondu + légère mise à l'échelle */
-    .slide-transition {
-        animation: slideFadeScale 0.6s ease-out;
-    }
-    @keyframes slideFadeScale {
-        0% { opacity: 0; transform: scale(0.92); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-
-    /* Confetti */
+    /* ===== CONFETTI ===== */
     .confetti-piece {
         position: fixed;
         width: 12px;
@@ -310,65 +322,78 @@ st.markdown("""
         z-index: 10000;
         pointer-events: none;
     }
+
     @keyframes confettiFall {
         0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
-        100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.5); }
+        100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
     }
 
-    /* Upload zone */
+    /* ===== TRANSITIONS SLIDES ===== */
+    .slide-transition {
+        animation: slideFadeScale 0.6s ease-out;
+    }
+
+    @keyframes slideFadeScale {
+        0% { opacity: 0; transform: scale(0.92); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== UPLOAD ZONE ===== */
     .stFileUploader {
         border: 3px dashed #ff69b4 !important;
-        border-radius: 20px;
-        transition: all 0.3s ease;
-    }
-    .stFileUploader:hover {
-        border-color: #ff1493 !important;
-        background: rgba(255,105,180,0.05);
-        transform: scale(1.01);
-    }
-
-    /* Expander animé */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #fff0f5, white) !important;
-        border-radius: 15px !important;
+        border-radius: 20px !important;
         transition: all 0.3s ease !important;
     }
-    .streamlit-expanderHeader:hover {
-        transform: translateX(5px);
-        color: #ff1493 !important;
+
+    .stFileUploader:hover {
+        border-color: #ff1493 !important;
+        background: rgba(255,105,180,0.05) !important;
+        transform: scale(1.02) !important;
     }
 
-    /* Progress bar */
+    /* ===== PROGRESS BAR ===== */
     .stProgress > div > div {
         background: linear-gradient(90deg, #ff69b4, #ff1493) !important;
         border-radius: 10px !important;
     }
 
-    /* Spinner */
-    .stSpinner > div {
-        border-color: #ff69b4 transparent transparent transparent !important;
+    /* ===== EXPANDER ===== */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #fff0f5, white) !important;
+        border-radius: 15px !important;
+        transition: all 0.3s ease !important;
     }
 
-    /* Fade animations pour les éléments */
+    .streamlit-expanderHeader:hover {
+        transform: translateX(8px) !important;
+        color: #ff1493 !important;
+    }
+
+    /* ===== AUTRES ANIMATIONS UTILITAIRES ===== */
     .fade-in { animation: fadeInUp 0.6s ease-out; }
     .fade-left { animation: fadeInLeft 0.6s ease-out; }
     .fade-right { animation: fadeInRight 0.6s ease-out; }
-    
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     @keyframes fadeInLeft {
         from { opacity: 0; transform: translateX(-30px); }
         to { opacity: 1; transform: translateX(0); }
     }
+
     @keyframes fadeInRight {
         from { opacity: 0; transform: translateX(30px); }
         to { opacity: 1; transform: translateX(0); }
     }
 
-    .floating { animation: float 3s ease-in-out infinite; }
-    .pulsing { animation: pulse 2s ease-in-out infinite; }
-    .bouncing { animation: bounce 1.5s ease-in-out infinite; }
-    .wiggling { animation: wiggle 1s ease-in-out infinite; }
-    .spinning { animation: spin 4s linear infinite; }
-    .heartbeat { animation: heartbeat 1.5s ease-in-out infinite; }
+    .floating { animation: floatAnim 3s ease-in-out infinite; }
+    .pulsing { animation: pulseAnim 2s ease-in-out infinite; }
+    .bouncing { animation: bounceAnim 1.5s ease-in-out infinite; }
+    .heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite; }
+    .spinning { animation: spinAnim 4s linear infinite; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -376,7 +401,6 @@ st.markdown("""
 # BALLONS ANIMATION
 # ==============================
 def show_balloons_animation():
-    """Affiche des ballons qui volent vers le haut."""
     balloons_html = """
     <div class="balloons-container" id="balloonsContainer">
         <div class="balloon" style="left:5%; animation-delay:0.0s; animation-duration:4.0s;">🎈</div>
@@ -404,10 +428,9 @@ def show_balloons_animation():
     st.balloons()
 
 # ==============================
-# CONFETTI ANIMATION
+# CONFETTI
 # ==============================
 def show_confetti():
-    """Affiche des confetti qui tombent."""
     confetti_html = """
     <script>
         (function() {
@@ -433,7 +456,7 @@ def show_confetti():
     st.markdown(confetti_html, unsafe_allow_html=True)
 
 # ==============================
-# SUPABASE (inchangé)
+# SUPABASE
 # ==============================
 BUCKET = "courses"
 
@@ -614,7 +637,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 100% {{ opacity: 1; transform: scale(1); }}
             }}
 
-            /* Confetti */
             .confetti-piece {{
                 position: fixed;
                 width: 10px;
@@ -701,7 +723,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     pageImage.style.transform = 'scale(1)';
                     pageImage.classList.add('slide-transition');
 
-                    // Confetti à la dernière page
                     if (index === totalPages - 1) {{
                         launchConfetti();
                     }}
@@ -799,4 +820,13 @@ def display_presentation(course):
     total_pages   = len(images_base64)
 
     if 'current_page' not in st.session_state:
-        st.session_state.current
+        st.session_state.current_page = 0
+
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown(
+            f"<h3 style='text-align:center;color:#c2185b;'>"
+            f"📄 Page {st.session_state.current_page + 1} / {total_pages}</h3>",
+            unsafe_allow_html=True
+        )
+        st.progress((st.session_state
