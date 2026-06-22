@@ -25,6 +25,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
+    /* Fond header - dégradé rose qui change en boucle */
     .stApp {
         background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%);
         background-size: 400% 400%;
@@ -50,12 +51,17 @@ st.markdown("""
         font-weight: bold;
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(255,20,147,0.3);
+        animation: btnPulse 2s ease-in-out infinite;
+    }
+    @keyframes btnPulse {
+        0%, 100% { box-shadow: 0 4px 15px rgba(255,20,147,0.3); }
+        50% { box-shadow: 0 4px 30px rgba(255,20,147,0.6); }
     }
     .stButton > button:hover {
-        transform: scale(1.08) translateY(-3px);
-        box-shadow: 0 8px 25px rgba(255,20,147,0.5);
+        transform: scale(1.08) translateY(-3px) !important;
+        box-shadow: 0 8px 25px rgba(255,20,147,0.5) !important;
     }
-    .stButton > button:active { transform: scale(0.97); }
+    .stButton > button:active { transform: scale(0.97) !important; }
 
     /* Course cards */
     .course-card {
@@ -66,6 +72,11 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         border: 1px solid #ffc0cb;
         transition: all 0.3s ease;
+        animation: cardFadeIn 0.6s ease-out;
+    }
+    @keyframes cardFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     .course-card:hover {
         transform: translateY(-8px);
@@ -73,113 +84,73 @@ st.markdown("""
         border-color: #ff69b4;
     }
 
-    /* Animations entrée */
-    @keyframes fadeInUp {
-        from { transform: translateY(30px); opacity: 0; }
-        to   { transform: translateY(0);    opacity: 1; }
-    }
-    @keyframes fadeInLeft {
-        from { transform: translateX(-30px); opacity: 0; }
-        to   { transform: translateX(0);     opacity: 1; }
-    }
-    @keyframes fadeInRight {
-        from { transform: translateX(30px); opacity: 0; }
-        to   { transform: translateX(0);    opacity: 1; }
-    }
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50%       { transform: scale(1.05); }
-    }
+    /* Animations pour les logos */
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
-        50%       { transform: translateY(-10px); }
-    }
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to   { transform: rotate(360deg); }
+        50% { transform: translateY(-15px); }
     }
     @keyframes bounce {
         0%, 100% { transform: translateY(0); }
-        25%       { transform: translateY(-15px); }
-        75%       { transform: translateY(-7px); }
+        25% { transform: translateY(-20px); }
+        75% { transform: translateY(-10px); }
     }
     @keyframes wiggle {
         0%, 100% { transform: rotate(0deg); }
-        25%       { transform: rotate(-10deg); }
-        75%       { transform: rotate(10deg); }
+        25% { transform: rotate(-15deg); }
+        75% { transform: rotate(15deg); }
     }
-    @keyframes rainbow {
-        0%   { color: #ff69b4; }
-        25%  { color: #ff1493; }
-        50%  { color: #c2185b; }
-        75%  { color: #ff69b4; }
-        100% { color: #ff1493; }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
     @keyframes heartbeat {
         0%, 100% { transform: scale(1); }
-        14%      { transform: scale(1.3); }
-        28%      { transform: scale(1); }
-        42%      { transform: scale(1.3); }
-        70%      { transform: scale(1); }
+        14% { transform: scale(1.4); }
+        28% { transform: scale(1); }
+        42% { transform: scale(1.4); }
+        70% { transform: scale(1); }
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
     }
     @keyframes oscillate {
-        0%, 100% { transform: rotate(-5deg); }
-        50%       { transform: rotate(5deg); }
+        0%, 100% { transform: rotate(-8deg); }
+        50% { transform: rotate(8deg); }
     }
-    @keyframes slideDown {
-        from { transform: translateY(-20px); opacity: 0; }
-        to   { transform: translateY(0);    opacity: 1; }
-    }
-
-    /* Ballons */
-    @keyframes balloonFloat {
-        0%   { transform: translateY(100vh) rotate(-5deg); opacity: 1; }
-        80%  { opacity: 1; }
-        100% { transform: translateY(-150px) rotate(5deg); opacity: 0; }
-    }
-    @keyframes balloonSway {
-        0%, 100% { margin-left: 0px; }
-        25%       { margin-left: 15px; }
-        75%       { margin-left: -15px; }
-    }
-
-    .fade-in      { animation: fadeInUp   0.6s ease-out; }
-    .fade-left    { animation: fadeInLeft  0.6s ease-out; }
-    .fade-right   { animation: fadeInRight 0.6s ease-out; }
-    .floating     { animation: float  3s ease-in-out infinite; }
-    .pulsing      { animation: pulse  2s ease-in-out infinite; }
-    .bouncing     { animation: bounce 1.5s ease-in-out infinite; }
-    .wiggling     { animation: wiggle 1s ease-in-out infinite; }
-    .spinning     { animation: spin 4s linear infinite; }
-    .heartbeat    { animation: heartbeat 1.5s ease-in-out infinite; }
-    .oscillating  { animation: oscillate 2s ease-in-out infinite; }
 
     /* Header logos animés - Chacun sa propre animation */
     .logo-container {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 20px;
+        gap: 25px;
         margin: 10px 0 20px 0;
         flex-wrap: wrap;
+        padding: 10px;
     }
     .logo-item {
-        font-size: 40px;
+        font-size: 45px;
         display: inline-block;
         cursor: default;
         transition: transform 0.3s ease;
+        padding: 5px;
     }
-    .logo-item:hover { transform: scale(1.3) rotate(10deg); }
-    .logo-1 { animation: float  2.0s ease-in-out infinite; }       /* 📖 flotter */
-    .logo-2 { animation: bounce 2.2s ease-in-out infinite; }       /* 📝 rebondir */
-    .logo-3 { animation: oscillate 1.8s ease-in-out infinite; }    /* 🎓 osciller */
-    .logo-4 { animation: spin 3s linear infinite; }                /* ⭐ tourner */
-    .logo-5 { animation: heartbeat 1.5s ease-in-out infinite; }    /* 💖 battre */
+    .logo-item:hover { transform: scale(1.4) rotate(15deg) !important; }
+    .logo-1 { animation: float 2.5s ease-in-out infinite; }       /* 📖 flotter */
+    .logo-2 { animation: bounce 2s ease-in-out infinite; }        /* 📝 rebondir */
+    .logo-3 { animation: oscillate 1.8s ease-in-out infinite; }   /* 🎓 osciller */
+    .logo-4 { animation: spin 4s linear infinite; }               /* ⭐ tourner */
+    .logo-5 { animation: heartbeat 1.5s ease-in-out infinite; }   /* 💖 battre */
 
     /* Titre animé avec dégradé défilant (shimmer) */
     .main-title {
         text-align: center;
-        animation: fadeInUp 0.8s ease-out;
+        animation: fadeInDown 0.8s ease-out;
+    }
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     .main-title h1 {
         background: linear-gradient(90deg, #ff69b4, #c2185b, #ff1493, #ff69b4, #c2185b);
@@ -187,13 +158,14 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 2.5rem !important;
+        font-size: 2.8rem !important;
         font-weight: 700;
         animation: shimmer 3s linear infinite;
         display: inline-block;
+        padding: 10px;
     }
     @keyframes shimmer {
-        0%   { background-position: 0% 50%; }
+        0% { background-position: 0% 50%; }
         100% { background-position: 300% 50%; }
     }
     .subtitle {
@@ -205,15 +177,31 @@ st.markdown("""
 
     /* Sidebar Avatar - Monte et descend doucement */
     .sidebar-avatar {
-        font-size: 60px;
+        font-size: 65px;
         text-align: center;
         animation: float 3s ease-in-out infinite;
         display: block;
+        padding: 10px;
     }
     /* Sidebar logos - Pulse en décalé */
-    .sidebar-icon-1 { animation: pulse 2s ease-in-out infinite; display: inline-block; margin: 0 3px; }
-    .sidebar-icon-2 { animation: pulse 2.3s ease-in-out infinite 0.3s; display: inline-block; margin: 0 3px; }
-    .sidebar-icon-3 { animation: pulse 2.6s ease-in-out infinite 0.6s; display: inline-block; margin: 0 3px; }
+    .sidebar-icon-1 { 
+        animation: pulse 2s ease-in-out infinite; 
+        display: inline-block; 
+        margin: 0 5px;
+        font-size: 28px;
+    }
+    .sidebar-icon-2 { 
+        animation: pulse 2.3s ease-in-out infinite 0.3s; 
+        display: inline-block; 
+        margin: 0 5px;
+        font-size: 28px;
+    }
+    .sidebar-icon-3 { 
+        animation: pulse 2.6s ease-in-out infinite 0.6s; 
+        display: inline-block; 
+        margin: 0 5px;
+        font-size: 28px;
+    }
 
     .sidebar-title {
         text-align: center;
@@ -222,11 +210,19 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         background-clip: text;
         font-weight: 700;
-        font-size: 1.2rem;
+        font-size: 1.3rem;
         animation: rainbow 4s ease-in-out infinite;
+        padding: 10px;
+    }
+    @keyframes rainbow {
+        0% { color: #ff69b4; }
+        25% { color: #ff1493; }
+        50% { color: #c2185b; }
+        75% { color: #ff69b4; }
+        100% { color: #ff1493; }
     }
 
-    /* Ballons container */
+    /* Ballons */
     .balloons-container {
         position: fixed;
         bottom: 0;
@@ -237,12 +233,21 @@ st.markdown("""
         z-index: 9999;
         overflow: hidden;
     }
+    @keyframes balloonFloat {
+        0% { transform: translateY(100vh) rotate(-5deg) scale(0.5); opacity: 1; }
+        100% { transform: translateY(-150px) rotate(5deg) scale(1); opacity: 0; }
+    }
+    @keyframes balloonSway {
+        0%, 100% { margin-left: 0px; }
+        25% { margin-left: 20px; }
+        75% { margin-left: -20px; }
+    }
     .balloon {
         position: absolute;
         bottom: -100px;
-        font-size: 50px;
-        animation: balloonFloat 4s ease-out forwards,
-                   balloonSway  1s ease-in-out infinite;
+        font-size: 55px;
+        animation: balloonFloat 4.5s ease-out forwards,
+                   balloonSway 1.5s ease-in-out infinite;
     }
 
     /* Success banner animé */
@@ -250,13 +255,64 @@ st.markdown("""
         background: linear-gradient(135deg, #ff69b4, #ff1493);
         color: white;
         border-radius: 20px;
-        padding: 20px;
+        padding: 25px;
         text-align: center;
-        font-size: 1.3rem;
+        font-size: 1.4rem;
         font-weight: bold;
         animation: fadeInUp 0.5s ease-out, pulse 2s ease-in-out infinite 0.5s;
         box-shadow: 0 10px 30px rgba(255,20,147,0.4);
-        margin: 10px 0;
+        margin: 15px 0;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stat cards */
+    .stat-card {
+        background: linear-gradient(135deg, #fff0f5, white);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 2px solid #ffc0cb;
+        animation: fadeInUp 0.8s ease-out;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
+    }
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #ff1493;
+        animation: pulse 2s ease-in-out infinite;
+        display: inline-block;
+    }
+
+    /* Transitions slides - fondu + légère mise à l'échelle */
+    .slide-transition {
+        animation: slideFadeScale 0.6s ease-out;
+    }
+    @keyframes slideFadeScale {
+        0% { opacity: 0; transform: scale(0.92); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Confetti */
+    .confetti-piece {
+        position: fixed;
+        width: 12px;
+        height: 12px;
+        top: -10px;
+        opacity: 0;
+        animation: confettiFall 3.5s ease-in forwards;
+        z-index: 10000;
+        pointer-events: none;
+    }
+    @keyframes confettiFall {
+        0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+        100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.5); }
     }
 
     /* Upload zone */
@@ -271,34 +327,6 @@ st.markdown("""
         transform: scale(1.01);
     }
 
-    /* Stats cards */
-    .stat-card {
-        background: linear-gradient(135deg, #fff0f5, white);
-        border-radius: 15px;
-        padding: 15px;
-        text-align: center;
-        border: 2px solid #ffc0cb;
-        animation: fadeInUp 0.8s ease-out;
-        transition: all 0.3s ease;
-    }
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
-    }
-    .stat-number {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #ff1493;
-        animation: pulse 2s ease-in-out infinite;
-        display: inline-block;
-    }
-
-    /* Progress bar customisée */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #ff69b4, #ff1493) !important;
-        border-radius: 10px !important;
-    }
-
     /* Expander animé */
     .streamlit-expanderHeader {
         background: linear-gradient(135deg, #fff0f5, white) !important;
@@ -310,47 +338,49 @@ st.markdown("""
         color: #ff1493 !important;
     }
 
-    /* Spinner personnalisé */
+    /* Progress bar */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #ff69b4, #ff1493) !important;
+        border-radius: 10px !important;
+    }
+
+    /* Spinner */
     .stSpinner > div {
         border-color: #ff69b4 transparent transparent transparent !important;
     }
 
-    /* Transitions slides - fondu + légère mise à l'échelle */
-    .slide-transition {
-        animation: slideFadeScale 0.5s ease-out;
+    /* Fade animations pour les éléments */
+    .fade-in { animation: fadeInUp 0.6s ease-out; }
+    .fade-left { animation: fadeInLeft 0.6s ease-out; }
+    .fade-right { animation: fadeInRight 0.6s ease-out; }
+    
+    @keyframes fadeInLeft {
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
     }
-    @keyframes slideFadeScale {
-        0%   { opacity: 0; transform: scale(0.95); }
-        100% { opacity: 1; transform: scale(1); }
+    @keyframes fadeInRight {
+        from { opacity: 0; transform: translateX(30px); }
+        to { opacity: 1; transform: translateX(0); }
     }
 
-    /* Confetti */
-    .confetti-piece {
-        position: fixed;
-        width: 10px;
-        height: 10px;
-        top: -10px;
-        opacity: 0;
-        animation: confettiFall 3s ease-in forwards;
-        z-index: 10000;
-        pointer-events: none;
-    }
-    @keyframes confettiFall {
-        0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
-        100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
-    }
+    .floating { animation: float 3s ease-in-out infinite; }
+    .pulsing { animation: pulse 2s ease-in-out infinite; }
+    .bouncing { animation: bounce 1.5s ease-in-out infinite; }
+    .wiggling { animation: wiggle 1s ease-in-out infinite; }
+    .spinning { animation: spin 4s linear infinite; }
+    .heartbeat { animation: heartbeat 1.5s ease-in-out infinite; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================
-# BALLONS ANIMATION (HTML + JS)
+# BALLONS ANIMATION
 # ==============================
 def show_balloons_animation():
-    """Affiche des ballons qui volent vers le haut avec animation."""
+    """Affiche des ballons qui volent vers le haut."""
     balloons_html = """
     <div class="balloons-container" id="balloonsContainer">
-        <div class="balloon" style="left:5%;  animation-delay:0.0s; animation-duration:3.5s;">🎈</div>
-        <div class="balloon" style="left:15%; animation-delay:0.2s; animation-duration:4.0s;">🌸</div>
+        <div class="balloon" style="left:5%; animation-delay:0.0s; animation-duration:4.0s;">🎈</div>
+        <div class="balloon" style="left:15%; animation-delay:0.2s; animation-duration:4.5s;">🌸</div>
         <div class="balloon" style="left:25%; animation-delay:0.1s; animation-duration:3.8s;">🎈</div>
         <div class="balloon" style="left:35%; animation-delay:0.3s; animation-duration:4.2s;">💖</div>
         <div class="balloon" style="left:45%; animation-delay:0.0s; animation-duration:3.6s;">🎈</div>
@@ -381,21 +411,21 @@ def show_confetti():
     confetti_html = """
     <script>
         (function() {
-            const colors = ['#ff69b4','#ff1493','#c2185b','#ffc0cb','#ffe6f0','#ffb6c1','#ff6b6b','#ffd93d'];
-            for (let i = 0; i < 50; i++) {
+            const colors = ['#ff69b4','#ff1493','#c2185b','#ffc0cb','#ffe6f0','#ffb6c1','#ff6b6b','#ffd93d','#ff9ff3','#54a0ff'];
+            for (let i = 0; i < 60; i++) {
                 setTimeout(function() {
                     var c = document.createElement('div');
                     c.className = 'confetti-piece';
                     c.style.left = Math.random() * 100 + 'vw';
                     c.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-                    c.style.width = (6 + Math.random() * 10) + 'px';
-                    c.style.height = (6 + Math.random() * 10) + 'px';
-                    c.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    c.style.width = (6 + Math.random() * 12) + 'px';
+                    c.style.height = (6 + Math.random() * 12) + 'px';
+                    c.style.animationDuration = (2 + Math.random() * 2.5) + 's';
                     c.style.animationDelay = (Math.random() * 0.5) + 's';
                     document.body.appendChild(c);
                     setTimeout(function() { c.remove(); }, 4000);
-                }, i * 60);
+                }, i * 70);
             }
         })();
     </script>
@@ -403,7 +433,7 @@ def show_confetti():
     st.markdown(confetti_html, unsafe_allow_html=True)
 
 # ==============================
-# SUPABASE
+# SUPABASE (inchangé)
 # ==============================
 BUCKET = "courses"
 
@@ -507,9 +537,9 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 padding:12px 30px; font-weight:bold; cursor:pointer;
                 transition:all 0.3s ease; font-size:16px;
                 box-shadow:0 4px 15px rgba(33,150,243,0.3);
-                animation: pulse 2s ease-in-out infinite;
+                animation: btnPulse 2s ease-in-out infinite;
             }}
-            @keyframes pulse {{
+            @keyframes btnPulse {{
                 0%,100% {{ box-shadow:0 4px 15px rgba(33,150,243,0.3); }}
                 50%      {{ box-shadow:0 4px 25px rgba(33,150,243,0.6); }}
             }}
@@ -556,9 +586,8 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 object-fit:contain; border-radius:8px;
                 box-shadow:0 4px 15px rgba(0,0,0,0.08);
                 user-select:none;
-                transition: opacity 0.3s ease, transform 0.3s ease;
+                transition: opacity 0.4s ease, transform 0.4s ease;
             }}
-            .page-image.changing {{ opacity: 0; transform: scale(0.95); }}
             .nav-buttons {{
                 display:flex; justify-content:center;
                 gap:15px; margin:15px 0 0 0; flex-wrap:wrap;
@@ -577,13 +606,28 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             .btn-nav:active:not(:disabled) {{ transform:scale(0.97); }}
             .btn-nav:disabled {{ opacity:0.4; cursor:not-allowed; transform:none; }}
 
-            /* Transition de slide */
             .slide-transition {{
                 animation: slideFadeScale 0.5s ease-out;
             }}
             @keyframes slideFadeScale {{
-                0%   {{ opacity: 0; transform: scale(0.95); }}
+                0%   {{ opacity: 0; transform: scale(0.92); }}
                 100% {{ opacity: 1; transform: scale(1); }}
+            }}
+
+            /* Confetti */
+            .confetti-piece {{
+                position: fixed;
+                width: 10px;
+                height: 10px;
+                top: -10px;
+                opacity: 0;
+                animation: confettiFall 3s ease-in forwards;
+                z-index: 10000;
+                pointer-events: none;
+            }}
+            @keyframes confettiFall {{
+                0%   {{ opacity: 1; transform: translateY(0) rotate(0deg); }}
+                100% {{ opacity: 0; transform: translateY(100vh) rotate(720deg); }}
             }}
 
             @media (max-width:768px) {{
@@ -641,10 +685,9 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             function updatePage(index) {{
                 if (index < 0 || index >= totalPages) return;
 
-                // Animation transition - fondu + mise à l'échelle
                 pageImage.classList.remove('slide-transition');
                 pageImage.style.opacity = '0';
-                pageImage.style.transform = 'scale(0.95)';
+                pageImage.style.transform = 'scale(0.92)';
 
                 setTimeout(function() {{
                     currentPage = index;
@@ -654,7 +697,6 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     prevBtn.disabled = (index === 0);
                     nextBtn.disabled = (index === totalPages-1);
 
-                    // Déclencher l'animation d'entrée
                     pageImage.style.opacity = '1';
                     pageImage.style.transform = 'scale(1)';
                     pageImage.classList.add('slide-transition');
@@ -663,7 +705,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                     if (index === totalPages - 1) {{
                         launchConfetti();
                     }}
-                }}, 200);
+                }}, 300);
             }}
 
             function launchConfetti() {{
@@ -674,14 +716,14 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                         c.className = 'confetti-piece';
                         c.style.left = Math.random() * 100 + 'vw';
                         c.style.background = colors[Math.floor(Math.random() * colors.length)];
-                        c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                        c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
                         c.style.width = (6 + Math.random() * 10) + 'px';
                         c.style.height = (6 + Math.random() * 10) + 'px';
                         c.style.animationDuration = (2 + Math.random() * 2) + 's';
                         c.style.animationDelay = (Math.random() * 0.5) + 's';
                         document.body.appendChild(c);
                         setTimeout(function() {{ c.remove(); }}, 4000);
-                    }}, i * 60);
+                    }}, i * 70);
                 }}
             }}
 
@@ -757,45 +799,4 @@ def display_presentation(course):
     total_pages   = len(images_base64)
 
     if 'current_page' not in st.session_state:
-        st.session_state.current_page = 0
-
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col2:
-        st.markdown(
-            f"<h3 style='text-align:center;color:#c2185b;'>"
-            f"📄 Page {st.session_state.current_page + 1} / {total_pages}</h3>",
-            unsafe_allow_html=True
-        )
-        st.progress((st.session_state.current_page + 1) / total_pages)
-    st.markdown("---")
-
-    html_viewer = create_html_viewer(
-        images_base64,
-        st.session_state.current_page,
-        total_pages,
-        course['title']
-    )
-    st.components.v1.html(html_viewer, height=780, scrolling=True)
-
-    with st.expander("📥 Télécharger le PDF original", expanded=False):
-        pdf_bytes = download_pdf(course["storage_path"])
-        st.download_button(
-            "Télécharger le fichier PDF",
-            data=pdf_bytes,
-            file_name=course["filename"],
-            mime="application/pdf"
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ==============================
-# MAIN
-# ==============================
-def main():
-    if 'viewing_course' not in st.session_state:
-        st.session_state.viewing_course = None
-
-    # Header avec titre animé (shimmer) et logos avec animations individuelles
-    st.markdown("""
-        <div class="main-title">
-            <h1>🌸
+        st.session_state.current
