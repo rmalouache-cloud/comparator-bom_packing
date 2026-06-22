@@ -8,6 +8,7 @@ import io
 import base64
 import fitz  # PyMuPDF
 from supabase import create_client, Client
+import streamlit.components.v1 as components
 
 # ==============================
 # PAGE CONFIG
@@ -19,15 +20,19 @@ st.set_page_config(
 )
 
 # ==============================
-# CUSTOM CSS + ANIMATIONS (Version qui fonctionne !)
+# CUSTOM CSS + ANIMATIONS (Version corrigée !)
 # ==============================
 st.markdown("""
 <style>
-    /* Force les animations à s'afficher */
-    .stApp {
-        background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%);
-        background-size: 400% 400%;
+    /* Correction de l'application du dégradé d'arrière-plan sur Streamlit */
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%) !important;
+        background-size: 400% 400% !important;
         animation: gradientShift 8s ease infinite !important;
+    }
+    
+    [data-testid="stHeader"] {
+        background-color: transparent !important;
     }
 
     @keyframes gradientShift {
@@ -242,189 +247,161 @@ st.markdown("""
         50% { transform: scale(1.03); }
     }
 
-    /* ===== STAT CARDS ===== */
-    .stat-card {
-        background: linear-gradient(135deg, #fff0f5, white) !important;
-        border-radius: 15px !important;
-        padding: 20px !important;
-        text-align: center !important;
-        border: 2px solid #ffc0cb !important;
+    /* ===== TRANSITIONS SLIDES - Fondu + mise à l'échelle ===== */
+    .slide-transition {
+        animation: slideFadeScale 0.6s ease-out !important;
+    }
+
+    @keyframes slideFadeScale {
+        0% { opacity: 0; transform: scale(0.9); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== UPLOAD ZONE ===== */
+    .stFileUploader {
+        border: 3px dashed #ff69b4 !important;
+        border-radius: 20px !important;
         transition: all 0.3s ease !important;
     }
 
-    .stat-card:hover {
-        transform: translateY(-8px) !important;
-        box-shadow: 0 10px 30px rgba(255,20,147,0.2) !important;
+    .stFileUploader:hover {
+        border-color: #ff1493 !important;
+        background: rgba(255,105,180,0.05) !important;
+        transform: scale(1.02) !important;
     }
 
-    .stat-number {
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #ff1493 !important;
-        animation: numberPulse 2s ease-in-out infinite !important;
-        display: inline-block !important;
-    }
-
-    @keyframes numberPulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.15); }
-    }
+    /* Classes d'animation d'icônes */
+    .floating { animation: floatAnim 3s ease-in-out infinite !important; }
+    .pulsing { animation: pulseAnim 2s ease-in-out infinite !important; }
+    .bouncing { animation: bounceAnim 1.5s ease-in-out infinite !important; }
+    .heartbeat { animation: heartbeatAnim 1.5s ease-in-out infinite !important; }
+    .spinning { animation: spinAnim 4s linear infinite !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================
-# AFFICHAGE DU TITRE ET DE L'AVATAR AVEC LEURS CLASSES CSS
-# ==============================
-# Affiche le Titre shimmer animé !
-st.markdown('<p class="shimmer-title">✨ English Teacher\'s Platform ✨</p>', unsafe_allow_html=True)
-
-# Affiche le sous-titre qui pulse !
-st.markdown('<div style="text-align:center;"><p class="subtitle">🌸 Interactive slides, smart course organizer and student milestone game rewards! 🌸</p></div>', unsafe_allow_html=True)
-
-# Affiche la série de logos avec leurs animations correspondantes (Flotter, Rebondir, Tourner...) !
-st.markdown("""
-<div class="logo-container">
-    <span class="logo-item logo-float">📖</span>
-    <span class="logo-item logo-bounce">📝</span>
-    <span class="logo-item logo-oscillate">🎓</span>
-    <span class="logo-item logo-spin">⭐</span>
-    <span class="logo-item logo-heartbeat">💖</span>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ==============================
-# CONSTRUCTIONS DE LA SIDEBAR AVEC SES ANIMATIONS
-# ==============================
-# Ajoute l'avatar rebondissant et les icônes pulsatiles dans la sidebar
-st.sidebar.markdown('<div class="sidebar-avatar">🌸</div>', unsafe_allow_html=True)
-st.sidebar.markdown('<div class="sidebar-title">SARAH\'S CLASSROOM</div>', unsafe_allow_html=True)
-
-st.sidebar.markdown("""
-<div class="sidebar-icons">
-    <span class="sidebar-icon icon-pulse-1">🌟</span>
-    <span class="sidebar-icon icon-pulse-2">📚</span>
-    <span class="sidebar-icon icon-pulse-3">🏆</span>
-</div>
-""", unsafe_allow_html=True)
-
-st.sidebar.markdown('---')
-
-
-# ==============================
-# BALLONS ANIMATION
+# BALLONS ANIMATION (Corrigé !)
 # ==============================
 def show_balloons_animation():
     balloons_html = """
-    <div class="balloons-container" id="balloonsContainer">
-        <div class="balloon" style="left:5%; animation-delay:0.0s; animation-duration:4.0s;">🎈</div>
-        <div class="balloon" style="left:15%; animation-delay:0.2s; animation-duration:4.5s;">🌸</div>
-        <div class="balloon" style="left:25%; animation-delay:0.1s; animation-duration:3.8s;">🎈</div>
-        <div class="balloon" style="left:35%; animation-delay:0.3s; animation-duration:4.2s;">💖</div>
-        <div class="balloon" style="left:45%; animation-delay:0.0s; animation-duration:3.6s;">🎈</div>
-        <div class="balloon" style="left:55%; animation-delay:0.4s; animation-duration:4.1s;">🌸</div>
-        <div class="balloon" style="left:65%; animation-delay:0.1s; animation-duration:3.9s;">🎈</div>
-        <div class="balloon" style="left:75%; animation-delay:0.2s; animation-duration:4.3s;">💖</div>
-        <div class="balloon" style="left:85%; animation-delay:0.3s; animation-duration:3.7s;">🎈</div>
-        <div class="balloon" style="left:92%; animation-delay:0.1s; animation-duration:4.0s;">✨</div>
-    </div>
     <script>
-        setTimeout(function() {
-            var container = document.getElementById('balloonsContainer');
-            if (container) container.remove();
-        }, 5000);
+        (function() {
+            let doc = document;
+            try {
+                if (window.parent && window.parent.document) {
+                    doc = window.parent.document;
+                }
+            } catch(e) {}
+
+            var container = doc.createElement('div');
+            container.id = 'balloonsContainer';
+            container.style.position = 'fixed';
+            container.style.bottom = '0';
+            container.style.left = '0';
+            container.style.width = '100vw';
+            container.style.height = '100vh';
+            container.style.pointerEvents = 'none';
+            container.style.zIndex = '99999';
+            container.style.overflow = 'hidden';
+
+            // Injection dynamique des animations clés dans le contexte parent
+            if (!doc.getElementById('balloon-styles')) {
+                var style = doc.createElement('style');
+                style.id = 'balloon-styles';
+                style.innerHTML = `
+                    @keyframes balloonFloat {
+                        0% { transform: translateY(100vh) rotate(-5deg) scale(0.5); opacity: 1; }
+                        100% { transform: translateY(-150px) rotate(5deg) scale(1); opacity: 0; }
+                    }
+                    @keyframes balloonSway {
+                        0%, 100% { margin-left: 0px; }
+                        25% { margin-left: 30px; }
+                        75% { margin-left: -30px; }
+                    }
+                `;
+                doc.head.appendChild(style);
+            }
+
+            const emojis = ['🎈', '🌸', '🎈', '💖', '🎈', '🌸', '🎈', '💖', '🎈', '✨', '🎊', '🎉', '💕'];
+            for (let i = 0; i < 18; i++) {
+                var b = doc.createElement('div');
+                b.style.position = 'absolute';
+                b.style.bottom = '-100px';
+                b.style.fontSize = '55px';
+                b.style.left = (Math.random() * 90 + 5) + '%';
+                b.innerText = emojis[i % emojis.length];
+                
+                var duration = (3.5 + Math.random() * 1.5) + 's';
+                var delay = (Math.random() * 0.6) + 's';
+                b.style.animation = 'balloonFloat ' + duration + ' ease-out ' + delay + ' forwards, balloonSway 1.8s ease-in-out infinite';
+                container.appendChild(b);
+            }
+            doc.body.appendChild(container);
+
+            setTimeout(function() {
+                container.remove();
+            }, 6000);
+        })();
     </script>
     """
-    st.markdown(balloons_html, unsafe_allow_html=True)
+    components.html(balloons_html, height=0, width=0)
     st.balloons()
 
 # ==============================
-# CONFETTI
+# CONFETTI (Corrigé !)
 # ==============================
 def show_confetti():
     confetti_html = """
     <script>
         (function() {
+            let doc = document;
+            try {
+                if (window.parent && window.parent.document) {
+                    doc = window.parent.document;
+                }
+            } catch(e) {}
+
             const colors = ['#ff69b4','#ff1493','#c2185b','#ffc0cb','#ffe6f0','#ffb6c1','#ff6b6b','#ffd93d','#ff9ff3','#54a0ff'];
+            
+            if (!doc.getElementById('confetti-styles')) {
+                var style = doc.createElement('style');
+                style.id = 'confetti-styles';
+                style.innerHTML = `
+                    @keyframes confettiFall {
+                        0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+                        100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
+                    }
+                `;
+                doc.head.appendChild(style);
+            }
+
             for (let i = 0; i < 60; i++) {
                 setTimeout(function() {
-                    var c = document.createElement('div');
-                    c.className = 'confetti-piece';
-                    c.style.left = Math.random() * 100 + 'vw';
-                    c.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    var c = doc.createElement('div');
+                    c.style.position = 'fixed';
                     c.style.width = (6 + Math.random() * 12) + 'px';
                     c.style.height = (6 + Math.random() * 12) + 'px';
-                    c.style.animationDuration = (2 + Math.random() * 2.5) + 's';
-                    c.style.animationDelay = (Math.random() * 0.5) + 's';
-                    document.body.appendChild(c);
+                    c.style.left = Math.random() * 100 + 'vw';
+                    c.style.top = '-10px';
+                    c.style.zIndex = '100000';
+                    c.style.pointerEvents = 'none';
+                    c.style.opacity = '1';
+                    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    
+                    c.style.animation = 'confettiFall ' + (2 + Math.random() * 2.5) + 's ease-in forwards';
+                    doc.body.appendChild(c);
+                    
                     setTimeout(function() { c.remove(); }, 4000);
                 }, i * 70);
             }
         })();
     </script>
     """
-    st.markdown(confetti_html, unsafe_allow_html=True)
+    components.html(confetti_html, height=0, width=0)
 
 # ==============================
-# SUPABASE
-# ==============================
-BUCKET = "courses"
-
-@st.cache_resource
-def get_supabase() -> Client:
-    return create_client(
-        st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_KEY"]
-    )
-
-def load_metadata() -> dict:
-    try:
-        rows = get_supabase().table("courses").select("*").execute().data
-        return {r["id"]: r for r in rows}
-    except Exception as e:
-        st.error(f"❌ Cannot load courses: {e}")
-        return {}
-
-def save_course(course_id: str, data: dict):
-    get_supabase().table("courses").upsert({"id": course_id, **data}).execute()
-
-def remove_course(course_id: str):
-    get_supabase().table("courses").delete().eq("id", course_id).execute()
-
-def upload_pdf(file_bytes: bytes, storage_path: str):
-    get_supabase().storage.from_(BUCKET).upload(
-        storage_path, file_bytes,
-        {"content-type": "application/pdf", "upsert": "true"}
-    )
-
-def download_pdf(storage_path: str) -> bytes:
-    return get_supabase().storage.from_(BUCKET).download(storage_path)
-
-def delete_pdf(storage_path: str):
-    get_supabase().storage.from_(BUCKET).remove([storage_path])
-
-# ==============================
-# PDF → BASE64 IMAGES
-# ==============================
-def pdf_bytes_to_base64_images(pdf_bytes: bytes) -> list:
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    images_b64 = []
-    for page in doc:
-        mat = fitz.Matrix(2.0, 2.0)
-        pix = page.get_pixmap(matrix=mat)
-        img = Image.open(io.BytesIO(pix.tobytes("png")))
-        if img.width > 1200:
-            ratio = 1200 / img.width
-            img = img.resize((1200, int(img.height * ratio)), Image.LANCZOS)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=True)
-        images_b64.append(base64.b64encode(buf.getvalue()).decode())
-    doc.close()
-    return images_b64
-
-# ==============================
-# HTML VIEWER
+# HTML VIEWER (Transition slide corrigée avec déclencheur de reflow !)
 # ==============================
 def create_html_viewer(images_base64, current_page, total_pages, course_title):
     current_img = images_base64[current_page]
@@ -520,7 +497,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
                 object-fit:contain; border-radius:8px;
                 box-shadow:0 4px 15px rgba(0,0,0,0.08);
                 user-select:none;
-                transition: opacity 0.4s ease, transform 0.4s ease;
+                transition: opacity 0.3s ease, transform 0.3s ease;
             }}
             .nav-buttons {{
                 display:flex; justify-content:center;
@@ -541,7 +518,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             .btn-nav:disabled {{ opacity:0.4; cursor:not-allowed; transform:none; }}
 
             .slide-transition {{
-                animation: slideFadeScale 0.5s ease-out;
+                animation: slideFadeScale 0.5s ease-out !important;
             }}
             @keyframes slideFadeScale {{
                 0%   {{ opacity: 0; transform: scale(0.92); }}
@@ -618,6 +595,7 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
             function updatePage(index) {{
                 if (index < 0 || index >= totalPages) return;
 
+                // On enlève temporairement l'animation
                 pageImage.classList.remove('slide-transition');
                 pageImage.style.opacity = '0';
                 pageImage.style.transform = 'scale(0.92)';
@@ -632,12 +610,15 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
 
                     pageImage.style.opacity = '1';
                     pageImage.style.transform = 'scale(1)';
+                    
+                    // FORCE REFLOW : force le navigateur à recalculer avant de remettre la classe !
+                    void pageImage.offsetWidth; 
                     pageImage.classList.add('slide-transition');
 
                     if (index === totalPages - 1) {{
                         launchConfetti();
                     }}
-                }}, 300);
+                }}, 150);
             }}
 
             function launchConfetti() {{
@@ -688,48 +669,3 @@ def create_html_viewer(images_base64, current_page, total_pages, course_title):
     </html>
     """
     return html_code
-
-# ==============================
-# DISPLAY PRESENTATION
-# ==============================
-def display_presentation(course):
-    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-
-    if st.button("◀ Back to Courses"):
-        st.session_state['viewing_course'] = None
-        for k in ['pdf_images', 'current_pdf_key', 'current_page']:
-            st.session_state.pop(k, None)
-        st.rerun()
-
-    st.markdown(f"""
-        <div style="text-align:center;" class="fade-in">
-            <h2>📖 {course['title']}</h2>
-            <p style="color:#c2185b;">
-                <span class="floating" style="display:inline-block;">🎯</span>
-                Level {course['level']} &nbsp;|&nbsp; 📅 {course['upload_date']}
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    st.markdown("---")
-
-    course_key = course["id"]
-
-    # Initialise les images PDF dans la session
-    if 'pdf_images' not in st.session_state or st.session_state.get('current_pdf_key') != course_key:
-        with st.spinner("⏳ Loading deck slides..."):
-            try:
-                pdf_bytes = download_pdf(course["storage_path"])
-                st.session_state['pdf_images'] = pdf_bytes_to_base64_images(pdf_bytes)
-                st.session_state['current_pdf_key'] = course_key
-                st.session_state['current_page'] = 0
-            except Exception as e:
-                st.error(f"❌ Failed to render PDF slides: {e}")
-                return
-
-    images_b64 = st.session_state['pdf_images']
-    total_pages = len(images_b64)
-    current_page = st.session_state.get('current_page', 0)
-
-    # Affiche le viewer HTML interactif avec support Plein Écran, Confettis et touches fléchées
-    html_viewer = create_html_viewer(images_b64, current_page, total_pages, course['title'])
-    st.components.v1.html(html_viewer, height=750, scrolling=True)
