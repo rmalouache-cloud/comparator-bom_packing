@@ -1,564 +1,996 @@
 import streamlit as st
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Border, Side
-from io import BytesIO
-from PIL import Image
-import matplotlib.pyplot as plt
-from reportlab.platypus import SimpleDocTemplate, Image as RLImage
-import tempfile
+import json
+import os
+from pathlib import Path
 import time
+from PIL import Image
+import io
+import base64
+import fitz  # PyMuPDF
+from supabase import create_client, Client
 
 # ==============================
-# CONFIG
+# PAGE CONFIG
 # ==============================
-st.set_page_config(page_title="BOM Comparator", layout="wide")
+st.set_page_config(
+    page_title="✨ English Teacher's Platform ✨",
+    page_icon="🌸",
+    layout="wide"
+)
 
 # ==============================
-# LOGO
+# CUSTOM CSS + ANIMATIONS
 # ==============================
-#try:
- #   logo = Image.open("logo.jfif")
-  #  st.image(logo, width=1500)
-#except:
-#    st.title("BOM Comparator")
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-st.markdown("## 📊  BOM vs Packing Comparison Tool  ⚖️")
-
-# ==============================
-# INPUTS
-# ==============================
-bom_file = st.file_uploader("📄  Upload BOM file", type=["xlsx", "xls"])
-packing_file = st.file_uploader("📦 Upload Packing file", type=["xlsx", "xls"])
-
-model_input = st.text_input("📺 Enter Model")
-lot_input = st.text_input(" 🔢 Enter Lot Quantity")
-
-run = st.button("🚀 Compare")
-
-# ==============================
-# KPI
-# ==============================
-def show_kpis(df):
-    total = len(df)
-    
-    # Compter les articles uniques avec changement de référence
-    # Chaque paire de changement compte comme 1 dans le compteur
-    ref_change_pairs = len(st.session_state.get("ref_changes", {}))
-    
-    conform = (df["Remark"] == "✅ Conform").sum()
-    missing = (df["Remark"] == "❌ Missing item").sum()
-    packing_only = (df["Remark"] == "📦 Packing only").sum()
-    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
-    
-    # Afficher le nombre de paires de changement, pas le nombre d'articles
-    st.markdown(f"### 📊 Total Articles: {total}")
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("✅ Conform", conform)
-    c2.metric("❌ Missing", missing)
-    c3.metric("📦 Packing only", packing_only)
-    c4.metric("⚠ Qty missing", qty_missing)
-    c5.metric("🔄 Ref Change", ref_change_pairs)
-
-# ==============================
-# PIE CHART
-# ==============================
-def generate_pie_chart(df):
-    conform = (df["Remark"] == "✅ Conform").sum()
-    missing = (df["Remark"] == "❌ Missing item").sum()
-    packing_only = (df["Remark"] == "📦 Packing only").sum()
-    qty_missing = (df["Remark"] == "⚠ Qty missing").sum()
-    ref_change_pairs = len(st.session_state.get("ref_changes", {}))
-    
-    # Pour le graphique, on utilise le nombre de paires
-    labels = ["Conform", "Missing", "Packing Only", "Qty Missing", "Ref Change"]
-    values = [conform, missing, packing_only, qty_missing, ref_change_pairs]
-    colors = ['#4CAF50', '#F44336', '#9C27B0', '#FF9800', '#2196F3']
-
-    fig, ax = plt.subplots(figsize=(4, 4))
-    ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90, colors=colors)
-    ax.set_title("KPI Distribution (Articles)")
-    return fig
-
-# ==============================
-# TABLE STYLE avec bordures noires
-# ==============================
-def highlight_remark_column(df):
-    styles = []
-    for val in df["Remark"]:
-        if val == "✅ Conform":
-            styles.append("background-color: #4CAF50; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
-        elif val == "⚠ Qty missing":
-            styles.append("background-color: #FF9800; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
-        elif val == "❌ Missing item":
-            styles.append("background-color: #F44336; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
-        elif val == "📦 Packing only":
-            styles.append("background-color: #9C27B0; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
-        elif val == "🔄 Reference Change":
-            styles.append("background-color: #2196F3; color: white; font-weight: bold; border: 2px solid #000000; border-radius: 5px;")
-        else:
-            styles.append("")
-    
-    style_df = pd.DataFrame("", index=df.index, columns=df.columns)
-    style_df["Remark"] = styles
-    return style_df
-
-# ==============================
-# EXCEL EXPORT AVEC COULEURS CLAIRES ET BORDURES NOIRES
-# ==============================
-def export_excel(df, common_equipment_df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Résultats détaillés")
-        if not common_equipment_df.empty:
-            common_equipment_df.to_excel(writer, index=False, sheet_name="Équipements communs")
-    output.seek(0)
-    wb = load_workbook(output)
-    
-    # Définir les bordures noires
-    thin_border = Border(
-        left=Side(style='thin', color='000000'),
-        right=Side(style='thin', color='000000'),
-        top=Side(style='thin', color='000000'),
-        bottom=Side(style='thin', color='000000')
-    )
-    
-    # Styliser la première feuille (Résultats détaillés)
-    ws1 = wb["Résultats détaillés"]
-    for row in ws1.iter_rows():
-        for cell in row:
-            cell.border = thin_border
-    
-    # Couleurs plus claires pour Excel
-    color_map = {
-        "✅ Conform": "C6EFCE",      # Vert très clair
-        "⚠ Qty missing": "FFEB9C",   # Orange très clair
-        "❌ Missing item": "FFC7CE",  # Rouge très clair
-        "📦 Packing only": "E6D0FF",  # Violet très clair
-        "🔄 Reference Change": "B3D9FF"  # Bleu très clair
+    .stApp {
+        background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 50%, #ffe6f0 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease infinite;
+        font-family: 'Poppins', sans-serif;
     }
-    
-    # Appliquer les couleurs aux lignes
-    for row in ws1.iter_rows(min_row=2, max_row=ws1.max_row):
-        remark_cell = row[8]  # Colonne Remark (index 8)
-        if remark_cell.value in color_map:
-            color = color_map[remark_cell.value]
-            for cell in row:
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
-    
-    # Ajuster la largeur des colonnes pour la première feuille
-    for column in ws1.columns:
-        max_length = 0
-        column_letter = column[0].column_letter
-        for cell in column:
+
+    @keyframes gradientShift {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    h1, h2, h3 { color: #c2185b !important; }
+
+    /* Boutons animés */
+    .stButton > button {
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        color: white;
+        border-radius: 25px;
+        border: none;
+        padding: 12px 25px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255,20,147,0.3);
+    }
+    .stButton > button:hover {
+        transform: scale(1.08) translateY(-3px);
+        box-shadow: 0 8px 25px rgba(255,20,147,0.5);
+    }
+    .stButton > button:active { transform: scale(0.97); }
+
+    /* Course cards */
+    .course-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin: 10px 0;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border: 1px solid #ffc0cb;
+        transition: all 0.3s ease;
+    }
+    .course-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(255,20,147,0.2);
+        border-color: #ff69b4;
+    }
+
+    /* Animations entrée */
+    @keyframes fadeInUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes fadeInLeft {
+        from { transform: translateX(-30px); opacity: 0; }
+        to   { transform: translateX(0);     opacity: 1; }
+    }
+    @keyframes fadeInRight {
+        from { transform: translateX(30px); opacity: 0; }
+        to   { transform: translateX(0);    opacity: 1; }
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50%       { transform: scale(1.05); }
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50%       { transform: translateY(-10px); }
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        25%       { transform: translateY(-15px); }
+        75%       { transform: translateY(-7px); }
+    }
+    @keyframes wiggle {
+        0%, 100% { transform: rotate(0deg); }
+        25%       { transform: rotate(-10deg); }
+        75%       { transform: rotate(10deg); }
+    }
+    @keyframes rainbow {
+        0%   { color: #ff69b4; }
+        25%  { color: #ff1493; }
+        50%  { color: #c2185b; }
+        75%  { color: #ff69b4; }
+        100% { color: #ff1493; }
+    }
+
+    /* Ballons */
+    @keyframes balloonFloat {
+        0%   { transform: translateY(100vh) rotate(-5deg); opacity: 1; }
+        80%  { opacity: 1; }
+        100% { transform: translateY(-150px) rotate(5deg); opacity: 0; }
+    }
+    @keyframes balloonSway {
+        0%, 100% { margin-left: 0px; }
+        25%       { margin-left: 15px; }
+        75%       { margin-left: -15px; }
+    }
+
+    .fade-in      { animation: fadeInUp   0.6s ease-out; }
+    .fade-left    { animation: fadeInLeft  0.6s ease-out; }
+    .fade-right   { animation: fadeInRight 0.6s ease-out; }
+    .floating     { animation: float  3s ease-in-out infinite; }
+    .pulsing      { animation: pulse  2s ease-in-out infinite; }
+    .bouncing     { animation: bounce 1.5s ease-in-out infinite; }
+    .wiggling     { animation: wiggle 1s ease-in-out infinite; }
+
+    /* Header logos animés */
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        margin: 10px 0 20px 0;
+        flex-wrap: wrap;
+    }
+    .logo-item {
+        font-size: 40px;
+        display: inline-block;
+        cursor: default;
+        transition: transform 0.3s ease;
+    }
+    .logo-item:hover { transform: scale(1.3) rotate(10deg); }
+    .logo-1 { animation: float  2.0s ease-in-out infinite; }
+    .logo-2 { animation: bounce 2.2s ease-in-out infinite; }
+    .logo-3 { animation: wiggle 1.8s ease-in-out infinite; }
+    .logo-4 { animation: float  2.5s ease-in-out infinite 0.3s; }
+    .logo-5 { animation: bounce 2.0s ease-in-out infinite 0.5s; }
+
+    /* Titre animé */
+    .main-title {
+        text-align: center;
+        animation: fadeInUp 0.8s ease-out;
+    }
+    .main-title h1 {
+        background: linear-gradient(45deg, #ff69b4, #c2185b, #ff1493);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.5rem !important;
+        font-weight: 700;
+        animation: none !important;
+    }
+    .subtitle {
+        color: #c2185b;
+        font-size: 18px;
+        animation: pulse 3s ease-in-out infinite;
+        display: inline-block;
+    }
+
+    /* Sidebar */
+    .sidebar-avatar {
+        font-size: 60px;
+        text-align: center;
+        animation: float 3s ease-in-out infinite;
+        display: block;
+    }
+    .sidebar-title {
+        text-align: center;
+        background: linear-gradient(45deg, #ff69b4, #ff1493);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+        font-size: 1.2rem;
+        animation: rainbow 4s ease-in-out infinite;
+        -webkit-text-fill-color: #ff69b4;
+    }
+
+    /* Ballons container */
+    .balloons-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+    }
+    .balloon {
+        position: absolute;
+        bottom: -100px;
+        font-size: 50px;
+        animation: balloonFloat 4s ease-out forwards,
+                   balloonSway  1s ease-in-out infinite;
+    }
+
+    /* Success banner */
+    .success-banner {
+        background: linear-gradient(135deg, #ff69b4, #ff1493);
+        color: white;
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        font-size: 1.3rem;
+        font-weight: bold;
+        animation: fadeInUp 0.5s ease-out, pulse 2s ease-in-out infinite 0.5s;
+        box-shadow: 0 10px 30px rgba(255,20,147,0.4);
+        margin: 10px 0;
+    }
+
+    /* Upload zone */
+    .stFileUploader {
+        border: 3px dashed #ff69b4 !important;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+    }
+    .stFileUploader:hover {
+        border-color: #ff1493 !important;
+        background: rgba(255,105,180,0.05);
+        transform: scale(1.01);
+    }
+
+    /* Stats cards */
+    .stat-card {
+        background: linear-gradient(135deg, #fff0f5, white);
+        border-radius: 15px;
+        padding: 15px;
+        text-align: center;
+        border: 2px solid #ffc0cb;
+        animation: fadeInUp 0.8s ease-out;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(255,20,147,0.15);
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ff1493;
+        animation: pulse 2s ease-in-out infinite;
+        display: inline-block;
+    }
+
+    /* Progress bar customisée */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #ff69b4, #ff1493) !important;
+        border-radius: 10px !important;
+    }
+
+    /* Expander animé */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #fff0f5, white) !important;
+        border-radius: 15px !important;
+        transition: all 0.3s ease !important;
+    }
+    .streamlit-expanderHeader:hover {
+        transform: translateX(5px);
+        color: #ff1493 !important;
+    }
+
+    /* Spinner personnalisé */
+    .stSpinner > div {
+        border-color: #ff69b4 transparent transparent transparent !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==============================
+# BALLONS ANIMATION  (HTML + JS)
+# ==============================
+def show_balloons_animation():
+    """Affiche des ballons qui volent vers le haut avec animation."""
+    balloons_html = """
+    <div class="balloons-container" id="balloonsContainer">
+        <div class="balloon" style="left:5%;  animation-delay:0.0s; animation-duration:3.5s;">🎈</div>
+        <div class="balloon" style="left:15%; animation-delay:0.2s; animation-duration:4.0s;">🎀</div>
+        <div class="balloon" style="left:25%; animation-delay:0.1s; animation-duration:3.8s;">🎈</div>
+        <div class="balloon" style="left:35%; animation-delay:0.3s; animation-duration:4.2s;">⭐</div>
+        <div class="balloon" style="left:45%; animation-delay:0.0s; animation-duration:3.6s;">🎈</div>
+        <div class="balloon" style="left:55%; animation-delay:0.4s; animation-duration:4.1s;">🌸</div>
+        <div class="balloon" style="left:65%; animation-delay:0.1s; animation-duration:3.9s;">🎈</div>
+        <div class="balloon" style="left:75%; animation-delay:0.2s; animation-duration:4.3s;">💖</div>
+        <div class="balloon" style="left:85%; animation-delay:0.3s; animation-duration:3.7s;">🎈</div>
+        <div class="balloon" style="left:92%; animation-delay:0.1s; animation-duration:4.0s;">✨</div>
+        <div class="balloon" style="left:10%; animation-delay:0.5s; animation-duration:3.5s;">🎊</div>
+        <div class="balloon" style="left:50%; animation-delay:0.6s; animation-duration:4.5s;">🎉</div>
+        <div class="balloon" style="left:80%; animation-delay:0.4s; animation-duration:3.8s;">💕</div>
+    </div>
+    <script>
+        // Supprimer les ballons après 5 secondes
+        setTimeout(function() {
+            var container = document.getElementById('balloonsContainer');
+            if (container) container.remove();
+        }, 5000);
+    </script>
+    """
+    st.markdown(balloons_html, unsafe_allow_html=True)
+    st.balloons()  # Ballons natifs Streamlit en plus !
+
+# ==============================
+# SUPABASE
+# ==============================
+BUCKET = "courses"
+
+@st.cache_resource
+def get_supabase() -> Client:
+    return create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"]
+    )
+
+def load_metadata() -> dict:
+    try:
+        rows = get_supabase().table("courses").select("*").execute().data
+        return {r["id"]: r for r in rows}
+    except Exception as e:
+        st.error(f"❌ Cannot load courses: {e}")
+        return {}
+
+def save_course(course_id: str, data: dict):
+    get_supabase().table("courses").upsert({"id": course_id, **data}).execute()
+
+def remove_course(course_id: str):
+    get_supabase().table("courses").delete().eq("id", course_id).execute()
+
+def upload_pdf(file_bytes: bytes, storage_path: str):
+    get_supabase().storage.from_(BUCKET).upload(
+        storage_path, file_bytes,
+        {"content-type": "application/pdf", "upsert": "true"}
+    )
+
+def download_pdf(storage_path: str) -> bytes:
+    return get_supabase().storage.from_(BUCKET).download(storage_path)
+
+def delete_pdf(storage_path: str):
+    get_supabase().storage.from_(BUCKET).remove([storage_path])
+
+# ==============================
+# PDF → BASE64 IMAGES
+# ==============================
+def pdf_bytes_to_base64_images(pdf_bytes: bytes) -> list:
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    images_b64 = []
+    for page in doc:
+        mat = fitz.Matrix(2.0, 2.0)
+        pix = page.get_pixmap(matrix=mat)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        if img.width > 1200:
+            ratio = 1200 / img.width
+            img = img.resize((1200, int(img.height * ratio)), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        images_b64.append(base64.b64encode(buf.getvalue()).decode())
+    doc.close()
+    return images_b64
+
+# ==============================
+# HTML VIEWER
+# ==============================
+def create_html_viewer(images_base64, current_page, total_pages, course_title):
+    current_img = images_base64[current_page]
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * {{ margin:0; padding:0; box-sizing:border-box; }}
+            body {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                background: linear-gradient(135deg, #ffe6f0 0%, #ffd9e8 100%);
+                padding: 20px;
+            }}
+            .presentation-container {{
+                max-width: 1100px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+                animation: fadeIn 0.5s ease-out;
+            }}
+            @keyframes fadeIn {{
+                from {{ opacity:0; transform:translateY(20px); }}
+                to   {{ opacity:1; transform:translateY(0); }}
+            }}
+            .presentation-container:fullscreen,
+            .presentation-container:-webkit-full-screen,
+            .presentation-container:-moz-full-screen {{
+                max-width:100%; width:100vw; height:100vh;
+                border-radius:0; padding:20px; overflow-y:auto;
+                background:white; display:flex; flex-direction:column;
+                justify-content:center;
+            }}
+            .fullscreen-top {{
+                display:flex; justify-content:flex-end; margin-bottom:15px;
+            }}
+            .btn-fullscreen {{
+                background: linear-gradient(45deg, #2196F3, #1976D2);
+                color:white; border:none; border-radius:25px;
+                padding:12px 30px; font-weight:bold; cursor:pointer;
+                transition:all 0.3s ease; font-size:16px;
+                box-shadow:0 4px 15px rgba(33,150,243,0.3);
+                animation: pulse 2s ease-in-out infinite;
+            }}
+            @keyframes pulse {{
+                0%,100% {{ box-shadow:0 4px 15px rgba(33,150,243,0.3); }}
+                50%      {{ box-shadow:0 4px 25px rgba(33,150,243,0.6); }}
+            }}
+            .btn-fullscreen:hover {{
+                transform:scale(1.08) translateY(-3px);
+                background:linear-gradient(45deg,#1976D2,#0D47A1);
+            }}
+            .header {{
+                display:flex; justify-content:space-between;
+                align-items:center; margin-bottom:15px;
+                flex-wrap:wrap; gap:10px;
+            }}
+            h1 {{
+                color:#c2185b; font-size:22px; margin:0;
+                background:linear-gradient(45deg,#ff69b4,#c2185b);
+                -webkit-background-clip:text;
+                -webkit-text-fill-color:transparent;
+            }}
+            .page-info {{
+                color:#c2185b; font-weight:bold; font-size:15px;
+                background:#ffe6f0; padding:6px 16px; border-radius:20px;
+                border:2px solid #ffc0cb;
+            }}
+            .progress-bar {{
+                width:100%; height:8px; background:#f0f0f0;
+                border-radius:4px; overflow:hidden; margin:10px 0 20px 0;
+            }}
+            .progress-fill {{
+                width:{((current_page + 1) / total_pages) * 100}%;
+                height:100%;
+                background:linear-gradient(90deg, #ff69b4, #ff1493);
+                transition:width 0.4s ease;
+                border-radius:4px;
+            }}
+            .image-wrapper {{
+                width:100%; display:flex; justify-content:center;
+                align-items:center; min-height:400px;
+                background:#fafafa; border-radius:12px;
+                padding:10px; margin-bottom:20px;
+                transition: all 0.3s ease;
+            }}
+            .page-image {{
+                max-width:100%; max-height:70vh;
+                object-fit:contain; border-radius:8px;
+                box-shadow:0 4px 15px rgba(0,0,0,0.08);
+                user-select:none;
+                transition: opacity 0.3s ease;
+            }}
+            .page-image.changing {{ opacity: 0; transform: scale(0.98); }}
+            .nav-buttons {{
+                display:flex; justify-content:center;
+                gap:15px; margin:15px 0 0 0; flex-wrap:wrap;
+            }}
+            .btn-nav {{
+                background:linear-gradient(45deg, #ff69b4, #ff1493);
+                color:white; border:none; border-radius:25px;
+                padding:12px 30px; font-weight:bold; cursor:pointer;
+                transition:all 0.3s ease; font-size:16px; min-width:140px;
+                box-shadow:0 4px 15px rgba(255,20,147,0.3);
+            }}
+            .btn-nav:hover:not(:disabled) {{
+                transform:scale(1.08) translateY(-3px);
+                box-shadow:0 8px 25px rgba(255,20,147,0.5);
+            }}
+            .btn-nav:active:not(:disabled) {{ transform:scale(0.97); }}
+            .btn-nav:disabled {{ opacity:0.4; cursor:not-allowed; transform:none; }}
+
+            /* Confetti quand on finit toutes les pages */
+            .confetti-piece {{
+                position:fixed; width:10px; height:10px;
+                top:-10px; opacity:0;
+                animation: confettiFall 3s ease-in forwards;
+            }}
+            @keyframes confettiFall {{
+                0%   {{ opacity:1; transform:translateY(0) rotate(0deg); }}
+                100% {{ opacity:0; transform:translateY(100vh) rotate(720deg); }}
+            }}
+
+            @media (max-width:768px) {{
+                body {{ padding:10px; }}
+                .presentation-container {{ padding:15px; }}
+                h1 {{ font-size:18px; }}
+                .btn-nav {{ padding:10px 20px; font-size:14px; min-width:100px; }}
+                .btn-fullscreen {{ font-size:14px; padding:10px 20px; }}
+                .image-wrapper {{ min-height:250px; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="presentation-container" id="presentationContainer">
+            <div class="fullscreen-top">
+                <button class="btn-fullscreen" id="fullscreenBtn">
+                    🖥️ PLEIN ÉCRAN
+                </button>
+            </div>
+            <div class="header">
+                <h1>📖 {course_title}</h1>
+                <div class="page-info" id="pageInfo">
+                    Page {current_page + 1} / {total_pages}
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="image-wrapper">
+                <img id="pageImage" class="page-image"
+                     src="data:image/png;base64,{current_img}"
+                     alt="Page {current_page + 1}" />
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-nav" id="prevBtn" {"disabled" if current_page == 0 else ""}>
+                    ◀◀ PRÉCÉDENT
+                </button>
+                <button class="btn-nav" id="nextBtn" {"disabled" if current_page == total_pages - 1 else ""}>
+                    SUIVANT ▶▶
+                </button>
+            </div>
+        </div>
+
+        <script>
+            const imagesBase64 = {json.dumps(images_base64)};
+            let currentPage   = {current_page};
+            const totalPages  = {total_pages};
+            const pageImage   = document.getElementById('pageImage');
+            const pageInfo    = document.getElementById('pageInfo');
+            const progressFill= document.getElementById('progressFill');
+            const prevBtn     = document.getElementById('prevBtn');
+            const nextBtn     = document.getElementById('nextBtn');
+            const container   = document.getElementById('presentationContainer');
+
+            function updatePage(index) {{
+                if (index < 0 || index >= totalPages) return;
+
+                // Animation transition
+                pageImage.style.opacity = '0';
+                pageImage.style.transform = 'scale(0.97)';
+
+                setTimeout(function() {{
+                    currentPage = index;
+                    pageImage.src = 'data:image/png;base64,' + imagesBase64[index];
+                    pageInfo.textContent = 'Page ' + (index+1) + ' / ' + totalPages;
+                    progressFill.style.width = ((index+1)/totalPages*100) + '%';
+                    prevBtn.disabled = (index === 0);
+                    nextBtn.disabled = (index === totalPages-1);
+
+                    pageImage.style.opacity = '1';
+                    pageImage.style.transform = 'scale(1)';
+
+                    // Confetti à la dernière page
+                    if (index === totalPages - 1) {{
+                        launchConfetti();
+                    }}
+                }}, 200);
+            }}
+
+            function launchConfetti() {{
+                const colors = ['#ff69b4','#ff1493','#c2185b','#ffc0cb','#ffe6f0','#ffb6c1'];
+                for (let i = 0; i < 30; i++) {{
+                    setTimeout(function() {{
+                        var c = document.createElement('div');
+                        c.className = 'confetti-piece';
+                        c.style.left = Math.random() * 100 + 'vw';
+                        c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                        c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                        c.style.animationDuration = (2 + Math.random() * 2) + 's';
+                        c.style.animationDelay = (Math.random() * 0.5) + 's';
+                        document.body.appendChild(c);
+                        setTimeout(function() {{ c.remove(); }}, 4000);
+                    }}, i * 80);
+                }}
+            }}
+
+            prevBtn.addEventListener('click', function() {{
+                if (currentPage > 0) updatePage(currentPage - 1);
+            }});
+            nextBtn.addEventListener('click', function() {{
+                if (currentPage < totalPages-1) updatePage(currentPage + 1);
+            }});
+            document.addEventListener('keydown', function(e) {{
+                if (e.key==='ArrowLeft'  && currentPage>0)            {{ updatePage(currentPage-1); e.preventDefault(); }}
+                if (e.key==='ArrowRight' && currentPage<totalPages-1)  {{ updatePage(currentPage+1); e.preventDefault(); }}
+            }});
+
+            // Transition image au chargement
+            pageImage.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+
+            document.getElementById('fullscreenBtn').addEventListener('click', function() {{
+                if (!document.fullscreenElement && !document.webkitFullscreenElement &&
+                    !document.mozFullScreenElement) {{
+                    (container.requestFullscreen || container.webkitRequestFullscreen ||
+                     container.msRequestFullscreen || container.mozRequestFullScreen).call(container);
+                }} else {{
+                    (document.exitFullscreen || document.webkitExitFullscreen ||
+                     document.msExitFullscreen || document.mozCancelFullScreen).call(document);
+                }}
+            }});
+            document.addEventListener('fullscreenchange', function() {{
+                container.style.maxWidth = document.fullscreenElement ? '100%' : '1100px';
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    return html_code
+
+# ==============================
+# DISPLAY PRESENTATION
+# ==============================
+def display_presentation(course):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+
+    if st.button("◀ Back to Courses"):
+        st.session_state['viewing_course'] = None
+        for k in ['pdf_images', 'current_pdf_key', 'current_page']:
+            st.session_state.pop(k, None)
+        st.rerun()
+
+    st.markdown(f"""
+        <div style="text-align:center;" class="fade-in">
+            <h2>📖 {course['title']}</h2>
+            <p style="color:#c2185b;">
+                <span class="floating" style="display:inline-block;">🎯</span>
+                Level {course['level']} &nbsp;|&nbsp; 📅 {course['upload_date']}
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+
+    course_key = course["id"]
+
+    if 'pdf_images' not in st.session_state or \
+       st.session_state.get('current_pdf_key') != course_key:
+        with st.spinner("🔄 Chargement du cours…"):
             try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = min(max_length + 2, 30)
-        ws1.column_dimensions[column_letter].width = adjusted_width
-    
-    # Styliser la deuxième feuille (Équipements communs) si elle existe
-    if not common_equipment_df.empty and "Équipements communs" in wb.sheetnames:
-        ws2 = wb["Équipements communs"]
-        for row in ws2.iter_rows():
-            for cell in row:
-                cell.border = thin_border
-        
-        # Ajuster la largeur des colonnes pour la deuxième feuille
-        for column in ws2.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 30)
-            ws2.column_dimensions[column_letter].width = adjusted_width
-    
-    final = BytesIO()
-    wb.save(final)
-    final.seek(0)
-    return final
+                pdf_bytes  = download_pdf(course["storage_path"])
+                images_b64 = pdf_bytes_to_base64_images(pdf_bytes)
+                st.session_state.pdf_images      = images_b64
+                st.session_state.current_pdf_key = course_key
+                st.session_state.current_page    = 0
+            except Exception as e:
+                st.error(f"❌ Impossible d'afficher ce PDF : {e}")
+                return
+
+    images_base64 = st.session_state.pdf_images
+    total_pages   = len(images_base64)
+
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = 0
+
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown(
+            f"<h3 style='text-align:center;color:#c2185b;'>"
+            f"📄 Page {st.session_state.current_page + 1} / {total_pages}</h3>",
+            unsafe_allow_html=True
+        )
+        st.progress((st.session_state.current_page + 1) / total_pages)
+    st.markdown("---")
+
+    html_viewer = create_html_viewer(
+        images_base64,
+        st.session_state.current_page,
+        total_pages,
+        course['title']
+    )
+    st.components.v1.html(html_viewer, height=780, scrolling=True)
+
+    with st.expander("📥 Télécharger le PDF original", expanded=False):
+        pdf_bytes = download_pdf(course["storage_path"])
+        st.download_button(
+            "Télécharger le fichier PDF",
+            data=pdf_bytes,
+            file_name=course["filename"],
+            mime="application/pdf"
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================
-# MAIN CALCULATION
+# MAIN
 # ==============================
-if run:
-    if not bom_file or not packing_file:
-        st.error("Upload both files")
-        st.stop()
-    if not model_input:
-        st.error("Enter model")
-        st.stop()
-    if not lot_input.isdigit():
-        st.error("Lot must be numeric")
-        st.stop()
-    lot = int(lot_input)
-    bom = pd.read_excel(bom_file)
-    packing = pd.read_excel(packing_file)
-    bom.columns = bom.columns.str.strip()
-    packing.columns = packing.columns.str.strip()
-    
-    # Nettoyer la colonne Model
-    packing["Model"] = packing["Model"].astype(str).str.strip()
-    packing["Model"] = packing["Model"].replace("", None).replace("-", None).replace("nan", None)
-    
-    # Séparer les équipements communs (sans modèle) des équipements spécifiques
-    common_equipment = packing[packing["Model"].isna()].copy()
-    packing_with_model = packing[packing["Model"].notna()].copy()
-    
-    # Propager les modèles pour les lignes vides (méthode ffill)
-    packing_with_model["Model"] = packing_with_model["Model"].ffill()
-    
-    # Filtrer par modèle sélectionné
-    packing_model = packing_with_model[packing_with_model["Model"] == model_input]
-    
-    if packing_model.empty and common_equipment.empty:
-        st.error("Model not found and no common equipment")
-        st.stop()
-    
-    # Traitement des équipements communs
-    common_equipment_summary = pd.DataFrame()
-    if not common_equipment.empty:
-        common_equipment_summary = common_equipment.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
-        common_equipment_summary = common_equipment_summary.rename(columns={
-            "packing_qty": "Qty expédiée"
-        })
-    
-    # Traitement des BOM vs Packing pour le modèle sélectionné
-    if not packing_model.empty:
-        bom_g = bom.groupby(["PN", "Description"])["bom_qty"].sum().reset_index()
-        packing_g = packing_model.groupby(["PN", "Description"])["packing_qty"].sum().reset_index()
-        df = pd.merge(bom_g, packing_g, on="PN", how="outer", suffixes=("_BOM", "_Packing"), indicator=True)
-        df["bom_qty"] = pd.to_numeric(df["bom_qty"], errors="coerce").fillna(0)
-        df["packing_qty"] = pd.to_numeric(df["packing_qty"], errors="coerce").fillna(0)
-        df["Description_BOM"] = df["Description_BOM"].fillna(df["Description_Packing"])
-        df["MP"] = df["bom_qty"] * lot
-        df["SAV"] = df["MP"] * 0.02
-        df["Qty (MP+SAV)"] = df["MP"] + df["SAV"]
-        df["Balance"] = df["packing_qty"] - df["Qty (MP+SAV)"]
-        
-        def detect_remark(row):
-            if row["_merge"] == "left_only":
-                return "❌ Missing item"
-            elif row["_merge"] == "right_only":
-                return "📦 Packing only"
-            elif row["packing_qty"] >= row["Qty (MP+SAV)"]:
-                return "✅ Conform"
-            else:
-                return "⚠ Qty missing"
-        
-        df["Remark"] = df.apply(detect_remark, axis=1)
-        result = df[[
-            "PN", "Description_BOM", "bom_qty", "packing_qty",
-            "MP", "SAV", "Qty (MP+SAV)", "Balance", "Remark"
-        ]].rename(columns={
-            "Description_BOM": "Description",
-            "bom_qty": "Qty BOM",
-            "packing_qty": "Packing list qty"
-        })
+def main():
+    if 'viewing_course' not in st.session_state:
+        st.session_state.viewing_course = None
+
+    # Header animé avec logos flottants
+    st.markdown("""
+        <div class="main-title">
+            <h1>🌸 English Teacher's Platform 🌸</h1>
+            <p><span class="subtitle">✨ Make learning beautiful and fun! ✨</span></p>
+        </div>
+        <div class="logo-container">
+            <span class="logo-item logo-1">📖</span>
+            <span class="logo-item logo-2">📝</span>
+            <span class="logo-item logo-3">🎓</span>
+            <span class="logo-item logo-4">✏️</span>
+            <span class="logo-item logo-5">📕</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    with st.sidebar:
+        st.markdown("""
+            <div style="padding:20px 0; text-align:center;">
+                <span class="sidebar-avatar">👩‍🏫</span>
+                <p class="sidebar-title">✨ Welcome! ✨</p>
+            </div>
+        """, unsafe_allow_html=True)
+        mode = st.radio("Choose your role:",
+                        ["👩‍🏫 Teacher", "👧 Student"], index=0)
+        st.markdown("---")
+
+        # Logos animés dans la sidebar
+        st.markdown("""
+            <div style="text-align:center; margin:10px 0;">
+                <span style="font-size:25px; animation:float 2s ease-in-out infinite;
+                             display:inline-block; margin:0 5px;">🌸</span>
+                <span style="font-size:25px; animation:bounce 2.2s ease-in-out infinite;
+                             display:inline-block; margin:0 5px;">⭐</span>
+                <span style="font-size:25px; animation:wiggle 1.8s ease-in-out infinite;
+                             display:inline-block; margin:0 5px;">💕</span>
+            </div>
+        """, unsafe_allow_html=True)
+        st.caption("🌸 Made with love for English teachers 🌸")
+
+    metadata = load_metadata()
+
+    if st.session_state.viewing_course is not None:
+        display_presentation(st.session_state.viewing_course)
+    elif mode == "👩‍🏫 Teacher":
+        teacher_mode(metadata)
     else:
-        result = pd.DataFrame()  # DataFrame vide si pas de données pour le modèle
-    
-    st.session_state["result"] = result
-    st.session_state["common_equipment"] = common_equipment_summary
-    st.session_state["data_ready"] = True
-    # Initialiser les changements de référence
-    if "ref_changes" not in st.session_state:
-        st.session_state["ref_changes"] = {}
+        student_mode(metadata)
 
 # ==============================
-# AFFICHAGE DES RÉSULTATS
+# TEACHER MODE
 # ==============================
-if "data_ready" in st.session_state and st.session_state["data_ready"]:
-    result = st.session_state["result"].copy() if not st.session_state["result"].empty else pd.DataFrame()
-    common_equipment = st.session_state["common_equipment"]
-    
-    # Appliquer les changements de référence
-    if not result.empty:
-        for old_ref, new_ref in st.session_state["ref_changes"].items():
-            result.loc[result["PN"] == old_ref, "Remark"] = "🔄 Reference Change"
-            result.loc[result["PN"] == new_ref, "Remark"] = "🔄 Reference Change"
-    
-    st.success("Comparison completed ✅")
-    
-    # 1. KPIs (seulement si result non vide)
-    if not result.empty:
-        show_kpis(result)
-        st.markdown("---")
-    
-    # 2. TABLEAU DES ÉQUIPEMENTS COMMUNS (avant le tableau principal)
-    if not common_equipment.empty:
-        st.markdown("### 🛠️ Équipements communs expédiés avec la marchandise")
-        st.markdown("*Ces équipements sont livrés avec tous les modèles (pas de modèle spécifique)*")
-        
-        styled_common = common_equipment.style.set_properties(**{
-            'background-color': '#E3F2FD',
-            'color': '#0D47A1',
-            'font-weight': 'bold',
-            'border': '2px solid #000000',
-            'border-radius': '5px'
-        })
-        st.dataframe(styled_common, use_container_width=True)
-        st.markdown("---")
-    
-    # 3. TABLEAU PRINCIPAL (si non vide)
-    if not result.empty:
-        styled = result.style.apply(highlight_remark_column, axis=None)
-        st.dataframe(styled, use_container_width=True)
-        st.markdown("---")
-    else:
-        st.info("ℹ️ Aucune donnée trouvée pour le modèle sélectionné")
-        st.markdown("---")
-    
-    # 4. GESTION CHANGEMENT REFERENCE (seulement si result non vide)
-    if not result.empty:
-        st.markdown("### 🔄 Gestion des changements de référence")
-        
-        # Créer trois onglets pour mieux organiser
-        tab1, tab2, tab3 = st.tabs(["➕ Nouveau changement", "📋 Changements actifs", "ℹ️ Aide"])
-        
-        with tab1:
-            missing_items = result[result["Remark"] == "❌ Missing item"]
-            packing_items = result[result["Remark"] == "📦 Packing only"]
-            
-            if missing_items.empty or packing_items.empty:
-                st.warning("⚠️ Aucun article 'Missing' ou 'Packing only' détecté pour créer un changement de référence")
-            else:
-                # Ajouter des statistiques
-                col_stat1, col_stat2 = st.columns(2)
-                with col_stat1:
-                    st.info(f"❌ **{len(missing_items)}** article(s) 'Missing' disponibles")
-                with col_stat2:
-                    st.info(f"📦 **{len(packing_items)}** article(s) 'Packing only' disponibles")
-                
-                st.markdown("---")
-                
-                # Sélection avec recherche et filtrage
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("**❌ Ancienne référence (Missing)**")
-                    
-                    # Ajouter une barre de recherche
-                    search_missing = st.text_input("🔍 Rechercher", placeholder="PN ou Description...", key="search_missing")
-                    
-                    # Filtrer les résultats
-                    missing_filtered = missing_items
-                    if search_missing:
-                        missing_filtered = missing_items[
-                            missing_items["PN"].str.contains(search_missing, case=False, na=False) |
-                            missing_items["Description"].str.contains(search_missing, case=False, na=False)
-                        ]
-                    
-                    if not missing_filtered.empty:
-                        selected_missing = st.selectbox(
-                            "Sélectionner l'article manquant",
-                            options=missing_filtered["PN"].tolist(),
-                            format_func=lambda x: f"🔴 {x} - {missing_filtered[missing_filtered['PN']==x]['Description'].values[0][:60]}",
-                            key="missing_select"
-                        )
-                        
-                        # Afficher les détails de l'article sélectionné
-                        if selected_missing:
-                            missing_details = missing_filtered[missing_filtered["PN"] == selected_missing].iloc[0]
-                            st.caption(f"📝 {missing_details['Description'][:100]}")
-                            st.caption(f"📊 Quantité BOM: {missing_details['Qty BOM']:.0f}")
-                    else:
-                        st.warning("Aucun résultat trouvé")
-                        selected_missing = None
-                
-                with col2:
-                    st.markdown("**📦 Nouvelle référence (Packing only)**")
-                    
-                    # Ajouter une barre de recherche
-                    search_packing = st.text_input("🔍 Rechercher", placeholder="PN ou Description...", key="search_packing")
-                    
-                    # Filtrer les résultats
-                    packing_filtered = packing_items
-                    if search_packing:
-                        packing_filtered = packing_items[
-                            packing_items["PN"].str.contains(search_packing, case=False, na=False) |
-                            packing_items["Description"].str.contains(search_packing, case=False, na=False)
-                        ]
-                    
-                    if not packing_filtered.empty:
-                        selected_packing = st.selectbox(
-                            "Sélectionner le nouvel article",
-                            options=packing_filtered["PN"].tolist(),
-                            format_func=lambda x: f"🔵 {x} - {packing_filtered[packing_filtered['PN']==x]['Description'].values[0][:60]}",
-                            key="packing_select"
-                        )
-                        
-                        # Afficher les détails de l'article sélectionné
-                        if selected_packing:
-                            packing_details = packing_filtered[packing_filtered["PN"] == selected_packing].iloc[0]
-                            st.caption(f"📝 {packing_details['Description'][:100]}")
-                            st.caption(f"📊 Quantité Packing: {packing_details['Packing list qty']:.0f}")
-                    else:
-                        st.warning("Aucun résultat trouvé")
-                        selected_packing = None
-                
-                # Bouton d'application avec vérification
-                if selected_missing and selected_packing:
-                    st.markdown("---")
-                    
-                    # Vérifier si le changement existe déjà
-                    already_exists = False
-                    existing_pair = None
-                    for old, new in st.session_state["ref_changes"].items():
-                        if old == selected_missing:
-                            already_exists = True
-                            existing_pair = (old, new)
-                            break
-                        if new == selected_packing:
-                            already_exists = True
-                            existing_pair = (old, new)
-                            break
-                    
-                    if already_exists:
-                        st.warning(f"⚠️ Cet article est déjà impliqué dans un changement : {existing_pair[0]} → {existing_pair[1]}")
-                    else:
-                        # Aperçu du changement
-                        st.info(f"**Aperçu :** {selected_missing} → {selected_packing}")
-                        
-                        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-                        with col_btn2:
-                            if st.button("✅ Appliquer ce changement", use_container_width=True, type="primary"):
-                                st.session_state["ref_changes"][selected_missing] = selected_packing
-                                st.success(f"✅ Changement appliqué avec succès ! {selected_missing} → {selected_packing}")
-                                time.sleep(0.5)
-                                st.rerun()
-        
-        with tab2:
-            if st.session_state["ref_changes"]:
-                st.markdown("### 📝 Changements de référence effectués")
-                
-                # Créer un dataframe pour l'affichage
-                changes_list = []
-                for idx, (old, new) in enumerate(st.session_state["ref_changes"].items(), 1):
-                    # Récupérer les descriptions
-                    old_desc = result[result["PN"] == old]["Description"].values[0] if old in result["PN"].values else "N/A"
-                    new_desc = result[result["PN"] == new]["Description"].values[0] if new in result["PN"].values else "N/A"
-                    
-                    changes_list.append({
-                        "#": idx,
-                        "Ancienne référence": old,
-                        "Ancienne description": old_desc[:50],
-                        "Nouvelle référence": new,
-                        "Nouvelle description": new_desc[:50]
+def teacher_mode(metadata):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.markdown("""
+            <h3 style="animation:fadeInLeft 0.6s ease-out;">
+                🌸 Upload New Course
+            </h3>
+        """, unsafe_allow_html=True)
+
+        lc1, lc2 = st.columns(2)
+        with lc1:
+            level = st.selectbox("📚 Main Level", ["A", "B", "C"])
+        with lc2:
+            sub_level = st.selectbox("🎯 Sub-level", ["1", "2", "3"])
+        full_level = f"{level}{sub_level}"
+
+        title       = st.text_input("📖 Course Title",
+                                    placeholder="e.g., Present Simple Tense")
+        description = st.text_area("💭 Description",
+                                   placeholder="What will students learn?")
+        uploaded    = st.file_uploader("📎 Upload PDF File", type=["pdf"])
+
+        if st.button("💖 Save Course", use_container_width=True):
+            if title and uploaded:
+                file_bytes   = uploaded.getbuffer().tobytes()
+                storage_path = f"{full_level}/{uploaded.name}"
+                course_id    = f"{full_level}_{uploaded.name}"
+
+                with st.spinner("⬆️ Upload en cours… 🚀"):
+                    upload_pdf(file_bytes, storage_path)
+                    save_course(course_id, {
+                        "title":        title,
+                        "description":  description or "No description",
+                        "level":        full_level,
+                        "filename":     uploaded.name,
+                        "storage_path": storage_path,
+                        "upload_date":  time.strftime("%Y-%m-%d %H:%M"),
                     })
-                
-                changes_df = pd.DataFrame(changes_list)
-                st.dataframe(changes_df, use_container_width=True, hide_index=True)
-                
-                # Statistiques des changements
-                st.markdown("---")
-                col_stat1, col_stat2, col_stat3 = st.columns(3)
-                with col_stat1:
-                    st.metric("Total changements", len(st.session_state["ref_changes"]))
-                with col_stat2:
-                    st.metric("Articles impactés", len(st.session_state["ref_changes"]) * 2)
-                with col_stat3:
-                    total_problems = len(result[result['Remark'].isin(['❌ Missing item', '📦 Packing only'])])
-                    if total_problems > 0:
-                        correction_rate = (len(st.session_state["ref_changes"]) / total_problems) * 100
-                        st.metric("Taux de correction", f"{correction_rate:.1f}%")
-                    else:
-                        st.metric("Taux de correction", "0%")
-                
-                # Bouton de réinitialisation
-                st.markdown("---")
-                col_reset1, col_reset2, col_reset3 = st.columns([1, 2, 1])
-                with col_reset2:
-                    if st.button("🗑️ Réinitialiser tous les changements", use_container_width=True):
-                        st.session_state["ref_changes"] = {}
-                        st.success("✅ Tous les changements ont été réinitialisés")
+
+                # Animation ballons + message succès animé
+                show_balloons_animation()
+                st.markdown(f"""
+                    <div class="success-banner">
+                        🎉 Course "<strong>{title}</strong>" saved successfully! 🎉<br>
+                        <span style="font-size:1.5rem;">🎈 🌸 ⭐ 💖 🎀</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error("💔 Please add a title and file!")
+
+    with col2:
+        st.markdown("""
+            <h3 style="animation:fadeInRight 0.6s ease-out;">📊 Quick Stats</h3>
+        """, unsafe_allow_html=True)
+
+        total = len(metadata)
+        st.markdown(f"""
+            <div class="stat-card">
+                <div style="font-size:1rem; color:#888;">Total Courses</div>
+                <div class="stat-number">📚 {total}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if metadata:
+            cnt = {}
+            for c in metadata.values():
+                cnt[c["level"]] = cnt.get(c["level"], 0) + 1
+            st.write("")
+            st.write("**📈 Courses per level:**")
+            for lv, n in sorted(cnt.items()):
+                st.progress(min(n / 10, 1.0), text=f"Level {lv}: {n} courses")
+
+    st.markdown("---")
+    st.markdown("""
+        <h3 style="animation:fadeInUp 0.6s ease-out;">📚 Manage Your Courses</h3>
+    """, unsafe_allow_html=True)
+
+    if metadata:
+        fl = st.selectbox("Filter by level:",
+                          ["All"] + sorted({c["level"] for c in metadata.values()}))
+        for key, course in metadata.items():
+            if fl != "All" and course["level"] != fl:
+                continue
+            with st.container():
+                ca, cb, cc = st.columns([3, 1, 1])
+                with ca:
+                    st.markdown(f"""
+                        <div class="course-card fade-in">
+                            <strong>📄 {course['title']}</strong><br>
+                            <small>🎯 Level {course['level']}</small>&nbsp;
+                            <small>📅 {course['upload_date']}</small><br>
+                            <small>💭 {course['description']}</small>
+                        </div>""", unsafe_allow_html=True)
+                    if st.button("🎬 View & Present", key=f"view_{key}"):
+                        for k in ['pdf_images', 'current_pdf_key', 'current_page']:
+                            st.session_state.pop(k, None)
+                        st.session_state.viewing_course = course
+                        st.rerun()
+                with cb:
+                    pdf_bytes = download_pdf(course["storage_path"])
+                    st.download_button("📥 Download", pdf_bytes,
+                                       file_name=course["filename"],
+                                       mime="application/pdf",
+                                       key=f"down_{key}")
+                with cc:
+                    if st.button("🗑️ Delete", key=f"del_{key}"):
+                        delete_pdf(course["storage_path"])
+                        remove_course(key)
+                        st.warning(f"💔 '{course['title']}' deleted")
                         time.sleep(0.5)
                         st.rerun()
-            else:
-                st.info("💡 Aucun changement de référence n'a encore été appliqué")
-                st.markdown("""
-                **Comment créer un changement ?**
-                
-                1. Allez dans l'onglet '➕ Nouveau changement'
-                2. Sélectionnez un article 'Missing' (ancienne référence)
-                3. Sélectionnez un article 'Packing only' (nouvelle référence)
-                4. Cliquez sur 'Appliquer ce changement'
-                """)
-        
-        with tab3:
-            st.markdown("### ℹ️ Guide d'utilisation")
-            
-            col_help1, col_help2 = st.columns(2)
-            
-            with col_help1:
-                st.markdown("**🎯 Quand utiliser cette fonction ?**")
-                st.markdown("- Lorsqu'une référence a été changée/remplacée dans la nouvelle version")
-                st.markdown("- Quand un article 'Missing' et un article 'Packing only' correspondent au même composant")
-                st.markdown("- Pour fusionner deux lignes qui représentent le même article")
-                st.markdown("")
-                st.markdown("**📊 Impact sur les KPIs**")
-                st.markdown("- Chaque changement de référence compte comme +1 dans 'Ref Change'")
-                st.markdown("- Les articles deviennent '🔄 Reference Change' dans le tableau")
-                st.markdown("- Le graphique circulaire est automatiquement mis à jour")
-            
-            with col_help2:
-                st.markdown("**💡 Conseils**")
-                st.markdown("- Utilisez la barre de recherche pour trouver rapidement un article")
-                st.markdown("- Vérifiez les descriptions pour confirmer la correspondance")
-                st.markdown("- Un article ne peut pas être utilisé dans deux changements différents")
-                st.markdown("- Vous pouvez annuler tous les changements à tout moment")
-                st.markdown("")
-                st.markdown("**🔍 Exemple**")
-                st.markdown("```")
-                st.markdown("Ancienne réf: RES-100 (Missing)")
-                st.markdown("Nouvelle réf: RES-200 (Packing only)")
-                st.markdown("→ Même résistance, référence changée")
-                st.markdown("```")
-            
-            st.markdown("---")
-            st.info("💬 Astuce : Les changements de référence ne modifient pas les quantités, ils permettent juste de suivre l'évolution des références.")
-        
-        st.markdown("---")
-    
-    # 5. CERCLE APRÈS TABLEAU (seulement si result non vide)
-    if not result.empty:
-        st.markdown("### 📊 KPI Distribution")
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            fig = generate_pie_chart(result)
-            st.pyplot(fig)
-            
-            # PDF Export
-            img_buffer = BytesIO()
-            fig.savefig(img_buffer, format="png")
-            img_buffer.seek(0)
-            pdf_buffer = BytesIO()
-            doc = SimpleDocTemplate(pdf_buffer)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                tmp.write(img_buffer.getvalue())
-                tmp_path = tmp.name
-            elements = [RLImage(tmp_path, width=300, height=300)]
-            doc.build(elements)
-            pdf_buffer.seek(0)
-            st.download_button(
-                "📄 Download KPI Chart (PDF)",
-                data=pdf_buffer,
-                file_name="KPI_Chart.pdf",
-                mime="application/pdf"
-            )
-    
-    # EXCEL DOWNLOAD
-    excel_file = export_excel(result if not result.empty else pd.DataFrame(), common_equipment)
-    st.download_button(
-        "📥 Download Excel Result",
-        data=excel_file,
-        file_name="BOM_vs_Packing.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    else:
+        st.markdown("""
+            <div style="text-align:center; padding:40px;" class="fade-in">
+                <span class="bouncing" style="font-size:60px; display:inline-block;">📚</span>
+                <p style="color:#c2185b; font-size:1.1rem; margin-top:15px;">
+                    No courses yet. Upload your first course above!
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================
+# STUDENT MODE
+# ==============================
+def student_mode(metadata):
+    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+
+    st.markdown("""
+        <h3 style="animation:fadeInUp 0.6s ease-out; text-align:center;">
+            🎓 Browse Your Courses
+        </h3>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        level = st.selectbox("📚 Select Main Level", ["A", "B", "C"])
+    with c2:
+        sub_level = st.selectbox("🎯 Select Sub-level", ["1", "2", "3"])
+
+    full_level        = f"{level}{sub_level}"
+    available_courses = {k: v for k, v in metadata.items()
+                         if v["level"] == full_level}
+
+    if available_courses:
+        st.markdown(f"""
+            <div style="text-align:center; margin:10px 0;" class="fade-in">
+                <span style="background:linear-gradient(45deg,#ff69b4,#ff1493);
+                             color:white; padding:10px 25px; border-radius:25px;
+                             font-weight:bold; font-size:1rem;
+                             box-shadow:0 4px 15px rgba(255,20,147,0.3);">
+                    ✨ Found {len(available_courses)} course(s) for Level {full_level} ✨
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+        st.write("")
+
+        for key, course in available_courses.items():
+            with st.expander(f"📖 {course['title']}", expanded=True):
+                ca, cb = st.columns([2, 1])
+                with ca:
+                    st.markdown(f"""
+                        <div style="background:linear-gradient(135deg,#fff0f5,white);
+                                    padding:15px; border-radius:15px;
+                                    border:1px solid #ffc0cb;
+                                    animation:fadeInLeft 0.6s ease-out;">
+                            <strong>💭 Description:</strong><br>{course['description']}<br><br>
+                            <strong>📅 Uploaded:</strong> {course['upload_date']}<br>
+                            <strong>🎯 Level:</strong> {course['level']}<br>
+                            <strong>📄 Type:</strong> PDF Document
+                        </div>""", unsafe_allow_html=True)
+                    if st.button("🎬 View Course", key=f"view_student_{key}"):
+                        for k in ['pdf_images', 'current_pdf_key', 'current_page']:
+                            st.session_state.pop(k, None)
+                        st.session_state.viewing_course = course
+                        st.rerun()
+                with cb:
+                    pdf_bytes = download_pdf(course["storage_path"])
+                    st.download_button(
+                        "📥 Download Course", pdf_bytes,
+                        file_name=course["filename"],
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=f"dl_s_{key}"
+                    )
+                if st.button("💡 Get a tip", key=f"tip_{key}"):
+                    import random
+                    tips = [
+                        "✨ Take notes while reading!",
+                        "💕 Practice with a friend!",
+                        "⭐ Review key vocabulary after!",
+                        "🌸 Ask questions if something is unclear!",
+                        "🎯 Focus on one topic at a time!",
+                        "📝 Write new words in a vocabulary notebook!"
+                    ]
+                    st.markdown(f"""
+                        <div style="background:linear-gradient(135deg,#ffe6f0,#ffd9e8);
+                                    padding:15px; border-radius:15px;
+                                    border:2px solid #ffc0cb;
+                                    animation:fadeInUp 0.4s ease-out;
+                                    text-align:center; font-weight:bold; color:#c2185b;">
+                            💖 {random.choice(tips)}
+                        </div>
+                    """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+            <div style="text-align:center; padding:40px;" class="fade-in">
+                <span class="floating" style="font-size:60px; display:inline-block;">📚</span>
+                <br><br>
+                <span class="bouncing" style="font-size:40px; display:inline-block;">✨</span>
+                <p style="color:#c2185b; font-size:1.1rem; margin-top:15px;">
+                    No courses available for Level {full_level} yet.<br>
+                    Ask your teacher to upload courses!
+                </p>
+            </div>
+        """.format(full_level=full_level), unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================
+# ENTRY POINT
+# ==============================
+if __name__ == "__main__":
+    main()
